@@ -44,6 +44,21 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}th,td{border-bottom:1
 .devt tr.dv>td.acts{grid-area:acts;border-top:1px solid var(--line);padding-top:8px;margin-top:2px}
 .devt tr.dv>td.acts::before{display:none}
 .devt tr.dv>td:nth-child(2):empty,.devt tr.dv>td:nth-child(2):empty::before{display:none}
+/* collapsed / expandable */
+.ghd{cursor:pointer;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.chev{margin-left:auto;font-size:.9rem;color:#1f6b45;transition:transform .15s}
+.chev::before{content:"\25BE"}
+.gopen .chev{transform:rotate(180deg)}
+.ga{display:none}.gopen .ga{display:block}
+.devt tr.dv>td.sum{display:none}
+.devt tr.dv:not(.open){grid-template-columns:1fr;grid-template-areas:"sum";padding:8px 10px;cursor:pointer}
+.devt tr.dv:not(.open)>td:not(.sum){display:none}
+.devt tr.dv:not(.open)>td.sum{display:flex;grid-area:sum;align-items:center;gap:8px;justify-content:space-between}
+.devt tr.dv>td.sum::before{display:none}
+.devt tr.dv.open>td:nth-child(1){cursor:pointer}
+.devt tr.dv.open>td:nth-child(1)::after{content:"\25B4  tap to close";display:block;font-size:.66rem;color:#6a7a72;margin-top:2px}
+.sum .sl{min-width:0}
+.sum .sst{font-size:.78rem;font-weight:700;white-space:nowrap}
 #login{position:fixed;inset:0;z-index:100;background:linear-gradient(160deg,var(--g),var(--d));display:flex;align-items:center;justify-content:center;padding:20px}
 #login .lb{background:#fff;border-radius:14px;padding:24px 20px;width:100%;max-width:360px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
 #login h2{margin:0 0 4px;color:var(--d);font-size:1.2rem}
@@ -344,6 +359,7 @@ function mkBtn(txt,fn,color){
   if(color){b.style.color=color;b.style.borderColor=color}
   b.onclick=fn;return b;
 }
+const OPEN=new Set(), OPENG=new Set();
 function drawDevices(){
   const flt=(q('dfilter')&&q('dfilter').value||'').trim().toLowerCase();
   const all=Object.keys(DEV).filter(k=>DEV[k]&&typeof DEV[k]==='object');
@@ -370,9 +386,13 @@ function drawDevices(){
     const gh=document.createElement('tr'); gh.className='gh';
     const gtd=document.createElement('td');gtd.colSpan=6;
     gtd.style.cssText='background:#e4f1ea;border-top:2px solid #1f6b45;padding:8px 6px';
-    gtd.innerHTML='<b>'+(em?esc(em):'(email not entered yet)')+'</b> &nbsp;<span style="'+(ids.length>1&&em?'color:#fff;background:#d97706;padding:1px 7px;border-radius:10px;font-weight:700':'color:#5a6b63')+'">'+ids.length+' ID'+(ids.length===1?'':'s')+(ids.length>1&&em?' &#9888;':'')+'</span>'+(eblk?' &nbsp;<span style="color:#fff;background:#b3261e;padding:1px 7px;border-radius:10px;font-weight:700">EMAIL BLOCKED</span>':'')+'<br>';
-    if(ids.length>1&&em){const n=document.createElement('div');n.style.cssText='font-size:.8rem;color:#92400e;margin:4px 0';n.textContent='This email has '+ids.length+' device IDs (customer changed phone/browser or cleared data). Keep or delete the old ones below.';gtd.appendChild(n)}
-    const gb=document.createElement('div'); gb.className='btns wide'; gtd.appendChild(gb);
+    gtd.innerHTML='<b>'+(em?esc(em):'(email not entered yet)')+'</b> &nbsp;<span style="'+(ids.length>1&&em?'color:#fff;background:#d97706;padding:1px 7px;border-radius:10px;font-weight:700':'color:#5a6b63')+'">'+ids.length+' ID'+(ids.length===1?'':'s')+(ids.length>1&&em?' &#9888;':'')+'</span>'+(eblk?' &nbsp;<span style="color:#fff;background:#b3261e;padding:1px 7px;border-radius:10px;font-weight:700">EMAIL BLOCKED</span>':'')+'<span class="chev"></span>';
+    { const hd=document.createElement('div');hd.className='ghd';hd.innerHTML=gtd.innerHTML;gtd.innerHTML='';gtd.appendChild(hd);
+      const gk=em||'(none)'; if(OPENG.has(gk)) gtd.classList.add('gopen');
+      hd.onclick=()=>{OPENG.has(gk)?OPENG.delete(gk):OPENG.add(gk);drawDevices()}; }
+    const ga=document.createElement('div');ga.className='ga';gtd.appendChild(ga);
+    if(ids.length>1&&em){const n=document.createElement('div');n.style.cssText='font-size:.8rem;color:#92400e;margin:4px 0';n.textContent='This email has '+ids.length+' device IDs (customer changed phone/browser or cleared data). Keep or delete the old ones below.';ga.appendChild(n)}
+    const gb=document.createElement('div'); gb.className='btns wide'; ga.appendChild(gb);
     gb.appendChild(mkBtn(allBlk?'Unblock email':'Block email (all IDs)',()=>{
       if(!allBlk&&!confirm('Block '+(em||'these devices')+' and all '+ids.length+' ID(s)? The app stops working on all of them.'))return;
       setBlockEmail(em,ids,!allBlk);
@@ -393,8 +413,14 @@ function drawDevices(){
       if(v.blocked){tr.style.background='#e6e6e6';tr.style.color='#555';st='<span style="color:#fff;background:#b3261e;padding:1px 6px;border-radius:4px;font-weight:700">BLOCKED</span>'}
       const isNew=ids.length>1&&id===newest&&(Date.now()-born(id))<14*86400000;
       tr.innerHTML='<td><b>'+esc(id)+'</b><br><small style="color:#1f6b45;font-weight:700">Device '+(ix+1)+'</small>'+(isNew?' <small style="color:#fff;background:#d97706;padding:0 5px;border-radius:8px">NEW</small>':'')+'<br><small>since '+(born(id)?dmy(born(id)):'?')+'</small></td><td>'+esc(v.name||'')+'</td><td>'+st+'</td><td>'+trialCell(v)+(v.extraDays?'<br><small>('+(v.extraDays>0?'+':'')+v.extraDays+' extra days)</small>':'')+'</td><td>'+esc(ago(v.lastSeen))+'</td><td></td>';
-      tr.className='dv'; ['Device ID','Name','Status','Trial','Last seen',''].forEach((l,i)=>{tr.children[i].dataset.l=l});
-      const td=tr.lastChild; td.className='acts';
+      tr.className='dv'+(OPEN.has(id)?' open':''); ['Device ID','Name','Status','Trial','Last seen',''].forEach((l,i)=>{tr.children[i].dataset.l=l});
+      { const sl=v.blocked?['BLOCKED','#b3261e']:v.active?['Activated','#2f6b3a']:(v.requested?['REQUEST','#b3261e']:['Trial','#777']);
+        const sm=document.createElement('td');sm.className='sum';
+        sm.innerHTML='<div class="sl"><b>'+esc(id)+'</b> <small style="color:#1f6b45;font-weight:700">Device '+(ix+1)+'</small>'+(isNew?' <small style="color:#fff;background:#d97706;padding:0 5px;border-radius:8px">NEW</small>':'')+(v.name?'<br><small>'+esc(v.name)+'</small>':'')+'</div><div class="sst" style="color:'+sl[1]+'">'+sl[0]+' <span style="color:#1f6b45">&#9662;</span></div>';
+        tr.appendChild(sm);
+        const tg=()=>{OPEN.has(id)?OPEN.delete(id):OPEN.add(id);drawDevices()};
+        sm.onclick=tg; tr.children[0].onclick=tg; }
+      const td=tr.querySelector('td:nth-child(6)'); td.className='acts';
       const bx=document.createElement('div'); bx.className='btns'; td.appendChild(bx);
       bx.appendChild(mkBtn('Use',()=>{q('d').value=id;q('u').value=v.name||em||q('u').value;window.scrollTo({top:0,behavior:'smooth'});q('u').focus()}));
       if(sk){
