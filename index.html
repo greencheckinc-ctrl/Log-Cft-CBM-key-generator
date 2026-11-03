@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Key Gen">
 <meta name="robots" content="noindex,nofollow">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.firebasedatabase.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; base-uri 'none'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://logcft-api.greencheckinc.workers.dev https://*.firebaseio.com https://*.firebasedatabase.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; base-uri 'none'; form-action 'self'">
 <title>Activation Key Generator (PRIVATE)</title>
 <style>
 :root{--g:#1f6b45;--d:#164f33;--bad:#b3261e;--line:#cddbd3}
@@ -110,6 +110,16 @@ body:not(.authed) .app{display:none}
   <div id="dsum" style="margin:6px 0;font-size:.85rem"></div>
   <input id="dfilter" type="text" autocomplete="off" placeholder="Search email, name or Device ID" style="margin:0 0 8px">
   <div><table class="devt"><thead><tr><th>Device ID</th><th>Name</th><th>Status</th><th>Trial</th><th>Last seen</th><th></th></tr></thead><tbody id="dev"></tbody></table></div>
+</div>
+<div class="box" id="playbox">
+  <strong>Play Store app: subscriptions</strong> <span id="pl-live" style="font-size:.8rem;color:#5a6b63"></span>
+  <p style="margin:4px 0 6px;font-size:.8rem;color:#5a6b63">Customers of the Google Play app (Premium and AI plans, bought through Google Play). Read from your Cloudflare Worker. The token is kept in your Firebase (admin login only) until you change or delete it.</p>
+  <div id="pl-tokw" style="display:flex;gap:8px"><input id="pl-tok" type="password" autocomplete="off" placeholder="ADMIN_TOKEN of the Worker"><button type="button" id="pl-save" style="margin:0;white-space:nowrap">Save &amp; load</button></div>
+  <div id="pl-sum" style="margin:8px 0;font-size:.85rem"></div>
+  <input id="pl-filter" type="text" autocomplete="off" placeholder="Search email or Device ID" style="margin:0 0 8px">
+  <div id="pl-list"></div>
+  <details id="pl-free" style="margin-top:10px"><summary style="cursor:pointer;font-weight:700;padding:6px 0">Free users <span id="pl-fn" style="font-weight:400;color:#5a6b63"></span></summary><div id="pl-fl"></div></details>
+  <div class="dbtns"><button type="button" id="pl-ref" class="alt">Refresh</button><button type="button" id="pl-chg" class="alt">Change token</button><button type="button" id="pl-forget" class="alt" style="color:#b3261e;border-color:#b3261e">Delete token</button></div>
 </div>
 <div class="box"><strong>Issued keys (this device)</strong>
   <table><thead><tr><th>ID</th><th>User</th><th>Device</th><th>Till</th><th></th></tr></thead><tbody id="log"></tbody></table>
@@ -561,7 +571,70 @@ async function createSigning(){
   }catch(e){m.textContent='Failed: '+(e.message||e)}
 }
 q('skmake').onclick=createSigning;
-function enter(){document.body.classList.add('authed');q('who').textContent=EMAIL;connect();loadSigning()}
+
+// ---------- Play Store app: subscriptions (from the Cloudflare Worker) ----------
+const PLW='https://logcft-api.greencheckinc.workers.dev';
+let PLTOK=null;   // the Worker ADMIN_TOKEN is kept in this keygen's Firebase (/config/playToken, admin only) until you change or delete it
+async function plFetchTok(){
+  try{const r=await fetch(au('/config/playToken')); if(r.status===401||r.status===403){PLTOK='';return 'no permission to read /config in Firebase'} const j=r.ok?await r.json():null; PLTOK=(typeof j==='string')?j:''; return ''}
+  catch(e){PLTOK='';return 'could not reach Firebase'}
+}
+let PLROWS=[], PLFREE=[];
+function plDate(ts){return ts?dmy(ts):'-'}
+function plDraw(){
+  plDrawFree();
+  const flt=(q('pl-filter').value||'').trim().toLowerCase(), box=q('pl-list'); box.innerHTML='';
+  const rows=PLROWS.filter(r=>!flt||r.email.toLowerCase().indexOf(flt)>-1||r.id.toLowerCase().indexOf(flt)>-1);
+  if(!rows.length){box.textContent=PLROWS.length?'No match.':'No Play Store customers yet.';return}
+  rows.forEach(r=>{
+    const d=document.createElement('div'); d.style.cssText='border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;background:#fff';
+    const ai=r.aiUntil?(r.aiActive?'<b style="color:#2f6b3a">'+esc(r.plan||'AI')+' ACTIVE</b> till '+plDate(r.aiUntil):'<b style="color:#b3261e">AI '+esc(r.plan||'')+' ended</b> '+plDate(r.aiUntil)):'No AI plan';
+    const pr=r.premiumUntil?(r.premiumActive?'<b style="color:#2f6b3a">Premium ACTIVE</b> till '+plDate(r.premiumUntil):'<b style="color:#b3261e">Premium ended</b> '+plDate(r.premiumUntil)):'No Premium';
+    d.innerHTML='<b>'+(r.email?esc(r.email):'(no email)')+'</b><br><small>Device '+esc(r.id)+'</small><br>'+pr+'<br>'+ai+(r.aiUntil?'<br>Images this plan: <b>'+r.used+' / '+r.limit+'</b>':'')+'<br><small>All time: '+r.total+' images &middot; last read '+plDate(r.lastRead)+'</small>';
+    box.appendChild(d);
+  });
+}
+function plDrawFree(){
+  const flt=(q('pl-filter').value||'').trim().toLowerCase(), fl=q('pl-fl'); fl.innerHTML='';
+  const rows=PLFREE.filter(r=>!flt||r.email.toLowerCase().indexOf(flt)>-1||r.id.toLowerCase().indexOf(flt)>-1);
+  q('pl-fn').textContent='('+PLFREE.length+')';
+  if(!rows.length){fl.textContent=PLFREE.length?'No match.':'No free users yet.';return}
+  rows.forEach(r=>{
+    const d=document.createElement('div'); d.style.cssText='border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;background:#fff;font-size:.85rem';
+    d.innerHTML='<b>'+(r.email?esc(r.email):'(no email)')+'</b>'+(r.blocked?' <span style="color:#fff;background:#b3261e;padding:1px 6px;border-radius:4px;font-weight:700">BLOCKED</span>':'')+'<br><small>Device '+esc(r.id)+(r.ver?' &middot; v'+esc(r.ver):'')+'</small><br><small>Since '+plDate(r.firstSeen)+' &middot; last seen '+esc(ago(r.lastSeen))+'</small>';
+    fl.appendChild(d);
+  });
+}
+async function plLoad(){
+  const L=q('pl-live'); L.textContent='loading...';L.style.color='#5a6b63';
+  if(PLTOK===null){const m=await plFetchTok(); if(m){L.textContent=m;L.style.color='#b3261e'}}
+  const t=PLTOK||''; q('pl-tokw').style.display=t?'none':'flex'; q('pl-chg').style.display=t?'':'none'; q('pl-forget').style.display=t?'':'none';
+  if(!t){if(L.style.color!=='rgb(179, 38, 30)'&&L.style.color!=='#b3261e')L.textContent='enter the token';q('pl-sum').textContent='';q('pl-list').innerHTML='';q('pl-fl').innerHTML='';q('pl-fn').textContent='';return}
+  try{
+    const r=await fetch(PLW+'/admin/list',{headers:{'X-Admin-Token':t}});
+    if(r.status===401){L.textContent='wrong token - enter the correct one';L.style.color='#b3261e';q('pl-tokw').style.display='flex';return}
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json(); PLROWS=j.rows||[]; PLFREE=j.free||[]; const s=j.summary||{};
+    q('pl-sum').innerHTML='Customers <b>'+(s.customers||0)+'</b> &middot; AI active <b>'+(s.aiActive||0)+'</b> &middot; Premium active <b>'+(s.premiumActive||0)+'</b> &middot; Images this plan <b>'+(s.photosThisPlan||0)+'</b> &middot; All time <b>'+(s.photosAllTime||0)+'</b> &middot; Free users <b>'+PLFREE.length+'</b>';
+    L.textContent='updated '+new Date().toLocaleTimeString();L.style.color='#2f6b3a';plDraw();
+  }catch(e){L.textContent='could not load ('+(e.message||e)+'). Check ALLOWED_ORIGIN in the Worker includes this site.';L.style.color='#b3261e'}
+}
+q('pl-save').onclick=async()=>{
+  const v=q('pl-tok').value.trim(); if(!v)return;
+  try{const r=await fetch(au('/config/playToken'),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});
+    if(!r.ok){q('pl-live').textContent='Could not save the token in Firebase (HTTP '+r.status+'). Check the database rules for /config.';q('pl-live').style.color='#b3261e';return}
+  }catch(e){q('pl-live').textContent='Could not save the token (offline?).';q('pl-live').style.color='#b3261e';return}
+  PLTOK=v; q('pl-tok').value=''; plLoad();
+};
+q('pl-chg').onclick=()=>{q('pl-tokw').style.display='flex';q('pl-tok').focus()};
+q('pl-ref').onclick=plLoad;
+q('pl-forget').onclick=async()=>{
+  if(!confirm('Delete the saved Worker token from Firebase? You will need to enter it again.'))return;
+  try{await fetch(au('/config/playToken'),{method:'DELETE'})}catch(e){}
+  PLTOK=''; PLROWS=[];PLFREE=[]; plLoad();
+};
+q('pl-filter').addEventListener('input',plDraw);
+function enter(){document.body.classList.add('authed');q('who').textContent=EMAIL;connect();loadSigning();plLoad()}
 function leave(){
   clearTimeout(RT);if(ES){ES.close();ES=null}if(ES2){ES2.close();ES2=null}EM={};
   TOKEN='';REFRESH='';PRV=null;DEV={};try{localStorage.removeItem(SESS)}catch(x){}
