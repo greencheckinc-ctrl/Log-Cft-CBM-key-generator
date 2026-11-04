@@ -371,6 +371,7 @@ function mkBtn(txt,fn,color){
 }
 const OPEN=new Set(), OPENG=new Set();
 function drawDevices(){
+  try{if(typeof plDrawFree==='function'&&PLROWS)plDrawFree()}catch(e){}
   const flt=(q('dfilter')&&q('dfilter').value||'').trim().toLowerCase();
   const all=Object.keys(DEV).filter(k=>DEV[k]&&typeof DEV[k]==='object');
   const groups={};
@@ -594,7 +595,12 @@ function plDraw(){
     box.appendChild(d);
   });
 }
+function plComputeFree(){
+  const paid=new Set(PLROWS.filter(r=>r.aiActive||r.premiumActive).map(r=>r.id));
+  PLFREE=Object.keys(DEV).filter(id=>{const v=DEV[id]; return v&&typeof v==='object'&&v.app==='android'&&!paid.has(id)}).map(id=>{const v=DEV[id]; return {id:id,email:v.email||'',firstSeen:v.firstSeen||0,lastSeen:v.lastSeen||0,ver:v.ver||'',blocked:!!v.blocked}}).sort((a,b)=>b.lastSeen-a.lastSeen);
+}
 function plDrawFree(){
+  plComputeFree();
   const flt=(q('pl-filter').value||'').trim().toLowerCase(), fl=q('pl-fl'); fl.innerHTML='';
   const rows=PLFREE.filter(r=>!flt||r.email.toLowerCase().indexOf(flt)>-1||r.id.toLowerCase().indexOf(flt)>-1);
   q('pl-fn').textContent='('+PLFREE.length+')';
@@ -614,7 +620,7 @@ async function plLoad(){
     const r=await fetch(PLW+'/admin/list',{headers:{'X-Admin-Token':t}});
     if(r.status===401){L.textContent='wrong token - enter the correct one';L.style.color='#b3261e';q('pl-tokw').style.display='flex';return}
     if(!r.ok) throw new Error('HTTP '+r.status);
-    const j=await r.json(); PLROWS=j.rows||[]; PLFREE=j.free||[]; const s=j.summary||{};
+    const j=await r.json(); PLROWS=j.rows||[]; plComputeFree(); const s=j.summary||{};
     q('pl-sum').innerHTML='Customers <b>'+(s.customers||0)+'</b> &middot; AI active <b>'+(s.aiActive||0)+'</b> &middot; Premium active <b>'+(s.premiumActive||0)+'</b> &middot; Images this plan <b>'+(s.photosThisPlan||0)+'</b> &middot; All time <b>'+(s.photosAllTime||0)+'</b> &middot; Free users <b>'+PLFREE.length+'</b>';
     L.textContent='updated '+new Date().toLocaleTimeString();L.style.color='#2f6b3a';plDraw();
   }catch(e){L.textContent='could not load ('+(e.message||e)+'). Check ALLOWED_ORIGIN in the Worker includes this site.';L.style.color='#b3261e'}
