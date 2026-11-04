@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1f6b45">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Key Gen">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://logcft-api.greencheckinc.workers.dev https://*.firebaseio.com https://*.firebasedatabase.app https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; base-uri 'none'; form-action 'self'">
+<title>Activation Key Generator (PRIVATE)</title>
+<style>
+:root{--g:#1f6b45;--d:#164f33;--bad:#b3261e;--line:#cddbd3}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f7f4;color:#1c2a24;padding:16px;max-width:720px;margin-inline:auto}
+h1{font-size:1.3rem;color:var(--g);margin:0 0 4px}
+.warn{background:#fde8e6;border:2px solid var(--bad);border-radius:6px;padding:8px;margin:8px 0 12px;font-size:.9rem}
+.box{background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:12px}
+label{display:block;font-size:.85rem;margin:8px 0 4px}
+select{width:100%;padding:10px;border:1px solid var(--line);border-radius:4px;font:inherit;background:#fff}
+input,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:4px;font:inherit;background:#fff}
+textarea{min-height:110px;word-break:break-all;font-family:monospace;font-size:.8rem}
+button{background:var(--g);color:#fff;border:0;padding:10px 16px;border-radius:4px;font-size:1rem;cursor:pointer;margin:8px 8px 0 0}
+button.alt{background:#fff;color:var(--g);border:2px solid var(--g)}
+.row{display:flex;gap:8px}.row>div{flex:1}
+table{width:100%;border-collapse:collapse;font-size:.85rem}th,td{border-bottom:1px solid var(--line);padding:4px;text-align:left}
+#msg{min-height:1.2em;margin-top:6px;font-size:.9rem}.err{color:var(--bad)}
+/* equal-size buttons (phone and desktop) */
+.btns{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px;margin-top:8px}
+.btns.wide{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.btns button,.dbtns button,#presets button,#gen{width:100%;min-height:40px;margin:0!important;padding:6px 8px!important;font-size:.88rem!important;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.15;white-space:normal}
+.dbtns{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin-top:8px}
+#presets{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:6px!important}
+/* devices: one card per device, same on phone and desktop */
+.devt,.devt tbody{display:block;width:100%}
+.devt thead{display:none}
+.devt tr{display:block}
+.devt tr.gh>td{display:block;padding:10px 8px;border-bottom:0}
+.devt tr.dv{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"id id" "name seen" "status status" "trial trial" "acts acts";gap:6px 12px;border:1px solid var(--line);border-radius:10px;margin:10px 0;padding:10px;background:#fff}
+.devt tr.dv>td{display:block;border:0;padding:0;min-width:0;overflow-wrap:anywhere}
+.devt tr.dv>td::before{content:attr(data-l);display:block;font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:#6a7a72;margin-bottom:1px}
+.devt tr.dv>td:nth-child(1){grid-area:id}.devt tr.dv>td:nth-child(2){grid-area:name}.devt tr.dv>td:nth-child(5){grid-area:seen}
+.devt tr.dv>td:nth-child(3){grid-area:status}.devt tr.dv>td:nth-child(4){grid-area:trial}
+.devt tr.dv>td.acts{grid-area:acts;border-top:1px solid var(--line);padding-top:8px;margin-top:2px}
+.devt tr.dv>td.acts::before{display:none}
+.devt tr.dv>td:nth-child(2):empty,.devt tr.dv>td:nth-child(2):empty::before{display:none}
+/* collapsed / expandable */
+.ghd{cursor:pointer;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.chev{margin-left:auto;font-size:.9rem;color:#1f6b45;transition:transform .15s}
+.chev::before{content:"\25BE"}
+.gopen .chev{transform:rotate(180deg)}
+.ga{display:none}.gopen .ga{display:block}
+.devt tr.dv>td.sum{display:none}
+.devt tr.dv:not(.open){grid-template-columns:1fr;grid-template-areas:"sum";padding:8px 10px;cursor:pointer}
+.devt tr.dv:not(.open)>td:not(.sum){display:none}
+.devt tr.dv:not(.open)>td.sum{display:flex;grid-area:sum;align-items:center;gap:8px;justify-content:space-between}
+.devt tr.dv>td.sum::before{display:none}
+.devt tr.dv.open>td:nth-child(1){cursor:pointer}
+.devt tr.dv.open>td:nth-child(1)::after{content:"\25B4  tap to close";display:block;font-size:.66rem;color:#6a7a72;margin-top:2px}
+.sum .sl{min-width:0}
+.sum .sst{font-size:.78rem;font-weight:700;white-space:nowrap}
+#login{position:fixed;inset:0;z-index:100;background:linear-gradient(160deg,var(--g),var(--d));display:flex;align-items:center;justify-content:center;padding:20px}
+#login .lb{background:#fff;border-radius:14px;padding:24px 20px;width:100%;max-width:360px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+#login h2{margin:0 0 4px;color:var(--d);font-size:1.2rem}
+#login button{width:100%;margin:12px 0 0}
+body.authed #login{display:none}
+body:not(.authed) .app{display:none}
+</style></head><body>
+<div id="login" role="dialog" aria-modal="true" aria-label="Admin login">
+  <form class="lb" id="lform" autocomplete="on">
+    <h2>Admin login</h2>
+    <div style="font-size:.85rem;color:#5a6b63">Log in with your Firebase admin user.</div>
+    <label for="lem">Email (user id)</label><input id="lem" type="email" autocomplete="username" required>
+    <label for="lpw">Password</label><input id="lpw" type="password" autocomplete="current-password" required>
+    <div id="lmsg" role="status" style="min-height:1.2em;margin-top:8px;font-size:.9rem"></div>
+    <button type="submit" id="lgo">Log in</button>
+  </form>
+</div>
+<div class="app">
+<h1>Activation Key Generator</h1>
+<div style="font-size:.85rem;margin-bottom:6px">Logged in as <b id="who"></b> <button type="button" id="logout" class="alt" style="padding:4px 10px;font-size:.85rem;margin:0 0 0 6px">Log out</button></div>
+<div class="warn"><strong>PRIVATE - for the developer only.</strong> The signing key is kept in your Firebase (admin login only), not in this file. Never share your admin login. Customers only get the generated key text.</div>
+<div class="box">
+  <label for="u">User / company name</label><input id="u" placeholder="e.g. Ravani Timber" autocomplete="off">
+  <label for="d">Device ID (optional - from the user's Activation key screen)</label><input id="d" placeholder="e.g. K7M2-QX9P" autocomplete="off" style="text-transform:uppercase">
+  <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="push" checked style="width:auto"> Also send the key to that device through Firebase (activates automatically)</label>
+  <label>Validity</label>
+  <div id="presets" style="margin:2px 0 6px">
+    <button type="button" class="alt pz" data-p="d15">15 days</button>
+    <button type="button" class="alt pz" data-p="m1">1 month</button>
+    <button type="button" class="alt pz" data-p="m6">6 months</button>
+    <button type="button" class="alt pz" data-p="m12">1 year</button>
+    <button type="button" class="alt pz" data-p="m24">2 years</button>
+    <button type="button" class="alt pz" data-p="none">No expiry</button>
+  </div>
+  <div id="pinfo" style="font-size:.85rem;margin-bottom:6px;color:#164f33;font-weight:700">Pick a validity below, or choose a date manually.</div>
+  <div class="row">
+    <div><label for="e">Or choose end date manually</label><input id="e" type="date"></div>
+    <div><label for="y">Or valid for (days)</label><input id="y" type="number" min="1" placeholder="e.g. 365"></div>
+  </div>
+  <button id="gen" type="button">Generate key</button>
+  <div id="msg" role="status"></div>
+  <label for="out">Activation key</label><textarea id="out" readonly></textarea>
+  <div class="dbtns"><button id="copy" type="button" class="alt">Copy</button><button id="wa" type="button" class="alt">Send on WhatsApp</button></div>
+</div>
+<div class="box">
+  <strong>Devices (live from Firebase)</strong> <span id="live" style="font-size:.8rem;color:#5a6b63">connecting...</span>
+  <label for="dburl" style="margin-top:6px">Database URL (Firebase console &gt; Realtime Database &gt; Data, the link at the top)</label>
+  <div style="display:flex;gap:8px"><input id="dburl" type="text" autocomplete="off" placeholder="https://...firebasedatabase.app"><button type="button" id="dbsave" style="margin:0;white-space:nowrap">Save &amp; connect</button></div>
+  <div id="dsum" style="margin:6px 0;font-size:.85rem"></div>
+  <input id="dfilter" type="text" autocomplete="off" placeholder="Search email, name or Device ID" style="margin:0 0 8px">
+  <div><table class="devt"><thead><tr><th>Device ID</th><th>Name</th><th>Status</th><th>Trial</th><th>Last seen</th><th></th></tr></thead><tbody id="dev"></tbody></table></div>
+</div>
+<div class="box" id="playbox">
+  <strong>Play Store app: subscriptions</strong> <span id="pl-live" style="font-size:.8rem;color:#5a6b63"></span>
+  <p style="margin:4px 0 6px;font-size:.8rem;color:#5a6b63">Customers of the Google Play app (Premium and AI plans, bought through Google Play). Read from your Cloudflare Worker. The token is kept in your Firebase (admin login only) until you change or delete it.</p>
+  <div id="pl-tokw" style="display:flex;gap:8px"><input id="pl-tok" type="password" autocomplete="off" placeholder="ADMIN_TOKEN of the Worker"><button type="button" id="pl-save" style="margin:0;white-space:nowrap">Save &amp; load</button></div>
+  <div id="pl-sum" style="margin:8px 0;font-size:.85rem"></div>
+  <input id="pl-filter" type="text" autocomplete="off" placeholder="Search email or Device ID" style="margin:0 0 8px">
+  <div id="pl-list"></div>
+  <details id="pl-free" style="margin-top:10px"><summary style="cursor:pointer;font-weight:700;padding:6px 0">Free users <span id="pl-fn" style="font-weight:400;color:#5a6b63"></span></summary><div id="pl-fl"></div></details>
+  <div class="dbtns"><button type="button" id="pl-ref" class="alt">Refresh</button><button type="button" id="pl-chg" class="alt">Change token</button><button type="button" id="pl-forget" class="alt" style="color:#b3261e;border-color:#b3261e">Delete token</button></div>
+</div>
+<div class="box" id="tsbox">
+  <strong>Testers (Play Store app)</strong> <span id="ts-live" style="font-size:.8rem;color:#5a6b63"></span>
+  <p style="margin:4px 0 6px;font-size:.8rem;color:#5a6b63">Every device that opened the Play Store app is listed here with its email. While <b>Free Access = ON</b> the values below replace any purchase: Premium yes/no, AI credits (photo readings) and expiry. OFF = normal rules (Free plan or real purchase). Uses the Worker token saved in the Play Store box above.</p>
+  <input id="ts-filter" type="text" autocomplete="off" placeholder="Search tester email or Device ID" style="margin:0 0 6px">
+  <label style="display:flex;gap:8px;align-items:center;margin:0 0 8px"><input type="checkbox" id="ts-all" style="width:auto"> Also show devices not marked as Play app (older versions / web)</label>
+  <div id="ts-list"></div>
+</div>
+<div class="box"><strong>Issued keys (this device)</strong>
+  <table><thead><tr><th>ID</th><th>User</th><th>Device</th><th>Till</th><th></th></tr></thead><tbody id="log"></tbody></table>
+</div>
+<div class="box" id="sk"><strong>Signing key</strong>
+  <p id="skmsg" style="margin:6px 0">Checking...</p>
+  <button type="button" id="skmake" style="display:none">Create signing key</button>
+  <div id="skpubw" style="display:none"><label>Public key (give this to the app; it is safe to share)</label>
+  <textarea id="skpub" readonly rows="4"></textarea></div>
+</div>
+<dialog id="dlg-ai" style="border:1px solid var(--line);border-radius:8px;padding:0;width:94%;max-width:440px">
+  <div style="background:var(--g);color:#fff;padding:10px 14px;font-weight:700" id="ai-t">AI key</div>
+  <div style="padding:12px 14px">
+    <p style="margin:0 0 6px;font-size:.85rem">This key is used by that customer's app to read sheet photos. Each customer has a separate key.</p>
+    <label for="ai-p">AI provider</label>
+    <select id="ai-p"><option value="gemini">Google Gemini</option><option value="openai">OpenAI (GPT)</option><option value="anthropic">Anthropic (Claude)</option><option value="sarvam">Sarvam AI</option><option value="groq">Groq AI</option><option value="tesseract">Tesseract OCR (free)</option></select>
+    <label for="ai-k">API key</label>
+    <input id="ai-k" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="AIza... / sk-... / sk-ant-...">
+    <label for="ai-m">Model (optional, leave empty for default)</label>
+    <input id="ai-m" type="text" autocomplete="off" autocapitalize="off" placeholder="e.g. gemini-3.8-flash / gpt-4o">
+    <div id="ai-hint" style="font-size:.8rem;color:#555;margin-top:4px"></div>
+    <div id="ai-use" style="font-size:.85rem;margin-top:6px;color:#164f33;font-weight:700"></div>
+    <div id="ai-msg" role="status" style="min-height:1.2em;margin-top:6px"></div>
+    <div class="dbtns">
+      <button type="button" id="ai-save" style="margin:0">Save</button>
+      <button type="button" id="ai-reset" class="alt" style="margin:0">Reset count</button>
+      <button type="button" id="ai-rm" class="alt" style="margin:0;color:#b3261e;border-color:#b3261e">Remove key</button>
+      <button type="button" id="ai-x" class="alt" style="margin:0">Close</button>
+    </div>
+  </div>
+</dialog>
+<dialog id="dlg-sync" style="border:1px solid var(--line);border-radius:8px;padding:0;width:94%;max-width:460px">
+  <div style="background:var(--g);color:#fff;padding:10px 14px;font-weight:700" id="sy-t">Sync setting</div>
+  <div style="padding:12px 14px">
+    <p style="margin:0 0 6px;font-size:.85rem">The Database URL is set only here. The customer's app gets it automatically and cannot see or change it. Sync ID and token can be changed here or in the app; the newest change wins.</p>
+    <div id="sy-old" style="display:none;margin:6px 0;font-size:.85rem;background:#fff7e0;padding:6px 8px;border-radius:4px"></div>
+    <label for="sy-u">Database URL</label>
+    <input id="sy-u" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://xxxx-default-rtdb.firebaseio.com">
+    <label for="sy-i">Sync ID (16+ characters, same on every device of the customer)</label>
+    <div style="display:flex;gap:6px"><input id="sy-i" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"><button type="button" id="sy-gen" class="alt" style="margin:0;white-space:nowrap">New ID</button></div>
+    <label for="sy-a">Auth token (optional)</label>
+    <input id="sy-a" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div id="sy-msg" role="status" style="min-height:1.2em;margin-top:6px"></div>
+    <div class="dbtns">
+      <button type="button" id="sy-save" style="margin:0">Save</button>
+      <button type="button" id="sy-rm" class="alt" style="margin:0;color:#b3261e;border-color:#b3261e">Remove</button>
+      <button type="button" id="sy-x" class="alt" style="margin:0">Close</button>
+    </div>
+  </div>
+</dialog>
+<script>
+let PRV=null;   // signing key is loaded from Firebase after admin login, never stored in this file
+const LOG='gc_issued_v1';
+const q=id=>document.getElementById(id);
+function b64u(b){let s='';new Uint8Array(b).forEach(x=>s+=String.fromCharCode(x));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+function rid(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',a=new Uint8Array(6);crypto.getRandomValues(a);return [...a].map(v=>c[v%32]).join('')}
+function rl(){try{return JSON.parse(localStorage.getItem(LOG)||'[]')}catch(e){return []}}
+function render(){
+  const t=q('log'); t.innerHTML='';
+  rl().slice().reverse().forEach(r=>{
+    const tr=document.createElement('tr');
+    [r.id,r.u,r.d||'any',r.e||'no expiry'].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)});
+    const td=document.createElement('td'),b=document.createElement('button');b.textContent='Show';b.className='alt';b.style.margin='0';
+    b.onclick=()=>{q('out').value=r.k||'';q('msg').textContent=r.k?('Key '+r.id+' ('+r.u+') is shown in the Activation key box above. Copy or send it.'):'This old entry has no saved key.';q('out').scrollIntoView({behavior:'smooth',block:'center'})};td.appendChild(b);tr.appendChild(td);t.appendChild(tr);
+  });
+}
+let PRESET='';
+function addMonths(d,n){const x=new Date(d.getFullYear(),d.getMonth()+n,1),last=new Date(x.getFullYear(),x.getMonth()+1,0).getDate();x.setDate(Math.min(d.getDate(),last));return x}
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function presetEnd(p){   // last valid day = (today + period) - 1, because the whole end day counts: the app then shows exactly 15 / 31 / ... days left
+  const t=new Date();t.setHours(12,0,0,0);let r=null;
+  if(p==='d15'){r=new Date(t);r.setDate(r.getDate()+15)}
+  else if(p==='m1')r=addMonths(t,1);
+  else if(p==='m6')r=addMonths(t,6);
+  else if(p==='m12')r=addMonths(t,12);
+  else if(p==='m24')r=addMonths(t,24);
+  if(!r)return '';
+  r.setDate(r.getDate()-1);return ymd(r);
+}
+const PNAME={d15:'15 days',m1:'1 month',m6:'6 months',m12:'1 year',m24:'2 years',none:'No expiry'};
+function showPinfo(){
+  const e=q('e').value;
+  if(PRESET==='none') q('pinfo').textContent='No expiry - key works for life.';
+  else if(e){const n=Math.ceil((new Date(e+'T23:59:59')-Date.now())/864e5);q('pinfo').textContent=(PRESET?PNAME[PRESET]+': ':'Valid till ')+e+' ('+n+' days)'}
+  else q('pinfo').textContent='Pick a validity below, or choose a date manually.';
+}
+function markPreset(){document.querySelectorAll('.pz').forEach(b=>{const on=b.dataset.p===PRESET;b.style.background=on?'#1f6b45':'#fff';b.style.color=on?'#fff':'#1f6b45'})}
+document.querySelectorAll('.pz').forEach(b=>b.onclick=()=>{PRESET=b.dataset.p;q('y').value='';q('e').value=presetEnd(PRESET);markPreset();showPinfo()});
+q('e').addEventListener('input',()=>{PRESET='';if(q('e').value)q('y').value='';markPreset();showPinfo()});
+q('y').addEventListener('input',()=>{PRESET='';if(q('y').value)q('e').value='';markPreset();const n=parseInt(q('y').value,10);if(n>0){const t=new Date();t.setDate(t.getDate()+n-1);q('pinfo').textContent='Valid till '+ymd(t)+' ('+n+' days)'}else showPinfo()});
+async function make(){
+  if(!PRV){q('msg').innerHTML='<span class="err">Signing key is not loaded. Scroll down to the "Signing key" box.</span>';return}
+  const u=q('u').value.trim(), d=q('d').value.trim().toUpperCase(); if(PRESET)q('e').value=presetEnd(PRESET); let e=q('e').value;
+  const y=parseInt(q('y').value,10);
+  if(!u){q('msg').innerHTML='<span class="err">Enter the user name.</span>';return}
+  if(d&&!/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(d)){q('msg').innerHTML='<span class="err">Device ID must look like K7M2-QX9P.</span>';return}
+  if(!e&&y>0){const t=new Date();t.setDate(t.getDate()+y-1);e=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')}
+  const p={v:1,id:rid(),u:u}; if(d)p.d=d; if(e)p.e=e;
+  const pb=new TextEncoder().encode(JSON.stringify(p));
+  const key=await crypto.subtle.importKey('jwk',PRV,{name:'ECDSA',namedCurve:'P-256'},false,['sign']);
+  const sig=await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},key,pb);
+  const k='GC1.'+b64u(pb)+'.'+b64u(sig);
+  q('out').value=k; q('msg').textContent='Key '+p.id+' created for '+u+'.';
+  const l=rl(); l.push({id:p.id,u:u,d:d,e:e,k:k}); try{localStorage.setItem(LOG,JSON.stringify(l))}catch(x){}
+  render();
+  if(d){   // always save a copy of the key on the device record, so it can be re-sent later from the table
+    const body={lastKey:k,lastKeyUser:u,lastKeyTill:e||'',lastKeyTs:Date.now()};
+    const pushNow=q('push').checked;
+    if(pushNow){body.key=k;body.keyUser=u;body.keyTill=e||'';body.keyTs=Date.now();body.requested=false}
+    try{
+      const r=await fetch(au('/devices/'+d),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      q('msg').textContent+=r.ok?(pushNow?' Sent to device '+d+' and saved in the table.':' Saved in the table under device '+d+'.'):' Could not save to Firebase (HTTP '+r.status+').';
+    }catch(x){q('msg').textContent+=' Could not save to Firebase (offline?).'}
+  }
+}
+q('gen').onclick=make;
+q('copy').onclick=async()=>{const k=q('out').value; if(!k)return; try{await navigator.clipboard.writeText(k);q('msg').textContent='Copied.'}catch(e){q('out').select();q('msg').textContent='Select and copy the text.'}};
+function waSend(k){window.open('https://wa.me/?text='+encodeURIComponent('Your Log CFT Calculator activation key:\n\n'+k+'\n\nOpen the app > Settings > Activation key, paste it and press Activate.'),'_blank')}
+q('wa').onclick=()=>{const k=q('out').value; if(!k)return; waSend(k)};
+render();
+
+// ---------- Live device list (Firebase Realtime Database, server-sent events) ----------
+let DB=(function(){try{return localStorage.getItem('gc_db_url')||''}catch(e){return ''}})()||'https://log-cft-cbm-key-generator-default-rtdb.firebaseio.com';   // <-- must match your Realtime Database URL (can also be changed on the page)
+let DEV={};
+function setAt(root,path,data,merge){
+  const seg=path.split('/').filter(Boolean);
+  root=root&&typeof root==='object'?root:{};
+  if(!seg.length){
+    if(merge&&data&&typeof data==='object'){Object.keys(data).forEach(k=>{if(data[k]===null)delete root[k];else root[k]=data[k]})}
+    else root=(data&&typeof data==='object')?data:{};
+    return root;
+  }
+  let o=root;
+  for(let i=0;i<seg.length-1;i++){ if(typeof o[seg[i]]!=='object'||o[seg[i]]===null) o[seg[i]]={}; o=o[seg[i]] }
+  const last=seg[seg.length-1];
+  if(merge&&data&&typeof data==='object'){ o[last]=Object.assign(o[last]||{},data); Object.keys(data).forEach(k=>{if(data[k]===null)delete o[last][k]}) }
+  else if(data===null) delete o[last]; else o[last]=data;
+  return root;
+}
+function ago(ts){
+  if(!ts) return '-'; const s=Math.max(0,(Date.now()-ts)/1000);
+  if(s<360) return 'online now'; if(s<3600) return Math.round(s/60)+' min ago';
+  if(s<86400) return Math.round(s/3600)+' h ago'; return Math.round(s/86400)+' d ago';
+}
+function esc(t){return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function dmy(ts){const d=new Date(ts);return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear()}
+function trialCell(v){
+  if(v.active) return '<small>Licensed</small>';
+  const st=v.trialStart||v.firstSeen, en=v.trialEnd||(st?st+30*86400000:0);
+  if(!en) return v.trialLeft!=null?esc(v.trialLeft)+' day(s) left':'-';
+  const left=Math.ceil((en-Date.now())/86400000);
+  const state=left>0?'<b style="color:'+(left<=5?'#b3261e':'#2f6b3a')+'">'+left+' day'+(left===1?'':'s')+' left</b>':'<b style="color:#b3261e">Expired</b>';
+  return state+'<br><small>'+(st?dmy(st):'?')+' &rarr; '+dmy(en)+'</small>';
+}
+function emailKey(e){return String(e||'').trim().toLowerCase().replace(/\./g,',').replace(/[#$\[\]\/]/g,'_')}
+async function adm(path,method,body){
+  const r=await fetch(au(path),{method:method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+  if(!r.ok) throw new Error('HTTP '+r.status); return r;
+}
+function fail(e){alert('Could not update ('+(e&&e.message||e)+'). Check the database rules and your internet.')}
+async function extendDev(id,n){
+  const v=DEV[id]||{}, extra=(v.extraDays||0)+n, DAYMS=86400000;
+  const st=v.trialStart||v.firstSeen||Date.now(), cur=v.trialEnd||(st+(30+(v.extraDays||0))*DAYMS);
+  await adm('/devices/'+id,'PATCH',{extraDays:extra,trialEnd:cur+n*DAYMS});
+}
+async function askExtend(ids,label){
+  const t=prompt('Extend trial of '+label+' by how many days? (use a minus number to reduce)','30'); if(t===null) return;
+  const n=parseInt(t,10); if(!n){alert('Enter a whole number of days.');return}
+  try{await Promise.all(ids.map(id=>extendDev(id,n)))}catch(e){fail(e)}
+}
+async function setBlockDev(id,flag){
+  try{await adm('/devices/'+id,'PATCH',{blocked:flag,blockedTs:Date.now()})}catch(e){fail(e)}
+}
+async function setBlockEmail(email,ids,flag){
+  try{
+    if(email) await adm('/emails/'+emailKey(email),'PATCH',{email:email,blocked:flag,ts:Date.now()});
+    await Promise.all(ids.map(id=>adm('/devices/'+id,'PATCH',{blocked:flag,blockedTs:Date.now()})));
+  }catch(e){fail(e)}
+}
+const PROVN={gemini:'Gemini',openai:'OpenAI',anthropic:'Claude',sarvam:'Sarvam AI',groq:'Groq AI',tesseract:'Tesseract OCR (free)'};
+const PROVH={gemini:'AIza...  |  model: gemini-3.8-flash',openai:'sk-...  |  model: gpt-4o',anthropic:'sk-ant-...  |  model is fixed in the app',sarvam:'sk_...  |  model: gemma4 (reads images). The key needs Sarvam beta access.',groq:'gsk_...  |  model: qwen/qwen3.8-27b (reads images, up to 3 images per request)',tesseract:'No key needed. Free OCR that runs on the customer\'s phone. Best for clear printed text; handwriting is less accurate.'};
+let AI_ID='', SY_ID='';
+function hostOf(u){try{return new URL(u).host}catch(e){return ''}}
+function newSyncId(){const a=new Uint8Array(12);crypto.getRandomValues(a);return [...a].map(x=>x.toString(16).padStart(2,'0')).join('')}
+function openSync(id){
+  const v=DEV[id]||{}; SY_ID=id;
+  q('sy-t').textContent='Sync setting for '+id+(v.name?' ('+v.name+')':'');
+  q('sy-u').value=v.syncUrl||''; q('sy-i').value=v.syncId||''; q('sy-a').value=v.syncAuth||''; q('sy-msg').textContent='';
+  const o=q('sy-old');
+  if(v.syncUrlOld&&!v.syncUrl){o.style.display='block';o.innerHTML='This customer was using <b>'+esc(v.syncUrlOld)+'</b> before. <a href="#" id="sy-use">Use it</a>';q('sy-use').onclick=e=>{e.preventDefault();q('sy-u').value=v.syncUrlOld}}
+  else o.style.display='none';
+  q('sy-rm').style.display=(v.syncUrl||v.syncId)?'inline-block':'none';
+  q('dlg-sync').showModal();
+}
+q('sy-x').onclick=()=>q('dlg-sync').close();
+q('sy-gen').onclick=()=>{q('sy-i').value=newSyncId()};
+q('sy-save').onclick=async()=>{
+  const u=q('sy-u').value.trim().replace(/\/+$/,''), i=q('sy-i').value.trim(), a=q('sy-a').value.trim(), m=q('sy-msg');
+  if(!/^https:\/\/[^\s\/]+\.[^\s\/]+/.test(u)){m.innerHTML='<span class="err">Enter the https Database URL.</span>';return}
+  if(i&&i.length<16){m.innerHTML='<span class="err">Sync ID must be at least 16 characters.</span>';return}
+  const o={syncUrl:u,syncOn:true};
+  const v=DEV[SY_ID]||{};
+  if(i!==(v.syncId||'')||a!==(v.syncAuth||'')){ o.syncId=i||null; o.syncAuth=a||null; o.syncTs=Date.now() }
+  if(await aiPatch(SY_ID,o)) q('dlg-sync').close();
+};
+q('sy-rm').onclick=async()=>{
+  if(!confirm('Remove the sync setting of '+SY_ID+'? Sync stops on that device.'))return;
+  if(await aiPatch(SY_ID,{syncUrl:null,syncOn:null,syncId:null,syncAuth:null,syncTs:null})) q('dlg-sync').close();
+};
+async function aiPatch(id,o){try{await adm('/devices/'+id,'PATCH',o);return true}catch(e){fail(e);return false}}
+function openAi(id){
+  const v=DEV[id]||{}; AI_ID=id;
+  q('ai-t').textContent='AI key for '+id+(v.name?' ('+v.name+')':'');
+  q('ai-p').value=v.apiProv||'gemini'; q('ai-k').value=v.apiKey||''; q('ai-m').value=v.apiModel||'';
+  aiHint();
+  q('ai-rm').style.display=v.apiKey?'inline-block':'none'; q('ai-msg').textContent='';
+  q('ai-reset').style.display=v.apiKey?'inline-block':'none';
+  q('ai-use').textContent=v.apiKey?('Used '+(v.apiUses||0)+' time'+((v.apiUses||0)===1?'':'s')+(v.apiLast?' (last: '+dmy(v.apiLast)+')':'')):'';
+  q('dlg-ai').showModal();
+}
+q('ai-x').onclick=()=>q('dlg-ai').close();
+function aiHint(){
+  const t=q('ai-p').value==='tesseract';
+  q('ai-hint').textContent=(t?'':'Key: ')+(PROVH[q('ai-p').value]||'');
+  q('ai-k').disabled=t; q('ai-m').disabled=t;
+  if(t) q('ai-k').value='ocr-free'; else if(q('ai-k').value==='ocr-free') q('ai-k').value='';
+  q('ai-k').style.display=t?'none':''; q('ai-m').style.display=t?'none':'';
+  document.querySelectorAll('label[for=ai-k],label[for=ai-m]').forEach(l=>l.style.display=t?'none':'');
+}
+q('ai-p').onchange=aiHint;
+q('ai-save').onclick=async()=>{
+  const tess=q('ai-p').value==='tesseract';
+  const k=tess?'ocr-free':q('ai-k').value.trim().replace(/\s+/g,'');
+  if(!tess&&k.length<10){q('ai-msg').innerHTML='<span class="err">Paste the full API key.</span>';return}
+  if(await aiPatch(AI_ID,{apiProv:q('ai-p').value,apiKey:k,apiModel:tess?null:(q('ai-m').value.trim()||null),apiOn:true,apiTs:Date.now()})) q('dlg-ai').close();
+};
+q('ai-reset').onclick=async()=>{
+  if(!confirm('Reset the usage count of '+AI_ID+' to 0?'))return;
+  if(await aiPatch(AI_ID,{apiUses:0,apiLast:null})) q('dlg-ai').close();
+};
+q('ai-rm').onclick=async()=>{
+  if(!confirm('Remove the AI key of '+AI_ID+'? Photo reading stops on that device.'))return;
+  if(await aiPatch(AI_ID,{apiProv:null,apiKey:null,apiModel:null,apiOn:null,apiTs:null,apiUses:null,apiLast:null})) q('dlg-ai').close();
+};
+function mkBtn(txt,fn,color){
+  const b=document.createElement('button');b.type='button';b.textContent=txt;b.className='alt';
+  if(color){b.style.color=color;b.style.borderColor=color}
+  b.onclick=fn;return b;
+}
+const OPEN=new Set(), OPENG=new Set();
+function drawDevices(){
+  try{if(typeof plDrawFree==='function'&&PLROWS)plDrawFree()}catch(e){}
+  try{if(typeof tsDraw==='function')tsDraw()}catch(e){}
+  const flt=(q('dfilter')&&q('dfilter').value||'').trim().toLowerCase();
+  const all=Object.keys(DEV).filter(k=>DEV[k]&&typeof DEV[k]==='object');
+  const groups={};
+  all.forEach(id=>{const em=String(DEV[id].email||'').trim().toLowerCase();(groups[em]=groups[em]||[]).push(id)});
+  const emails=Object.keys(groups);
+  const req=all.filter(i=>DEV[i].requested&&!DEV[i].active).length, act=all.filter(i=>DEV[i].active).length;
+  const multi=emails.filter(e=>e&&groups[e].length>1).length;
+  q('dsum').innerHTML='Emails <b>'+emails.filter(e=>e).length+'</b> &middot; Devices <b>'+all.length+'</b> &middot; Requests <b style="color:#b3261e">'+req+'</b> &middot; Activated <b>'+act+'</b> &middot; Blocked <b>'+all.filter(i=>DEV[i].blocked).length+'</b> &middot; Emails with 2+ IDs <b style="color:#b3261e">'+multi+'</b>';
+  const t=q('dev'); t.innerHTML='';
+  const shown=emails.filter(e=>{
+    if(!flt) return true;
+    return e.indexOf(flt)>-1||groups[e].some(id=>id.toLowerCase().indexOf(flt)>-1||String(DEV[id].name||'').toLowerCase().indexOf(flt)>-1);
+  });
+  if(!shown.length){t.innerHTML='<tr><td colspan="6">'+(all.length?'No match.':'No devices yet.')+'</td></tr>';return}
+  const last=e=>Math.max.apply(null,groups[e].map(id=>DEV[id].lastSeen||0));
+  const hasReq=e=>groups[e].some(id=>DEV[id].requested&&!DEV[id].active)?1:0;
+  shown.sort((a,b)=>(hasReq(b)-hasReq(a))||(last(b)-last(a)));
+  shown.forEach(em=>{
+    const born=id=>DEV[id].firstSeen||DEV[id].trialStart||DEV[id].lastSeen||0;
+    const ids=groups[em].slice().sort((a,b)=>born(a)-born(b));
+    const newest=ids[ids.length-1];
+    const eblk=!!(EM[emailKey(em)]&&EM[emailKey(em)].blocked), allBlk=ids.every(id=>DEV[id].blocked)||eblk;
+    const gh=document.createElement('tr'); gh.className='gh';
+    const gtd=document.createElement('td');gtd.colSpan=6;
+    gtd.style.cssText='background:#e4f1ea;border-top:2px solid #1f6b45;padding:8px 6px';
+    gtd.innerHTML='<b>'+(em?esc(em):'(email not entered yet)')+'</b> &nbsp;<span style="'+(ids.length>1&&em?'color:#fff;background:#d97706;padding:1px 7px;border-radius:10px;font-weight:700':'color:#5a6b63')+'">'+ids.length+' ID'+(ids.length===1?'':'s')+(ids.length>1&&em?' &#9888;':'')+'</span>'+(eblk?' &nbsp;<span style="color:#fff;background:#b3261e;padding:1px 7px;border-radius:10px;font-weight:700">EMAIL BLOCKED</span>':'')+'<span class="chev"></span>';
+    { const hd=document.createElement('div');hd.className='ghd';hd.innerHTML=gtd.innerHTML;gtd.innerHTML='';gtd.appendChild(hd);
+      const gk=em||'(none)'; if(OPENG.has(gk)) gtd.classList.add('gopen');
+      hd.onclick=()=>{OPENG.has(gk)?OPENG.delete(gk):OPENG.add(gk);drawDevices()}; }
+    const ga=document.createElement('div');ga.className='ga';gtd.appendChild(ga);
+    if(ids.length>1&&em){const n=document.createElement('div');n.style.cssText='font-size:.8rem;color:#92400e;margin:4px 0';n.textContent='This email has '+ids.length+' device IDs (customer changed phone/browser or cleared data). Keep or delete the old ones below.';ga.appendChild(n)}
+    const gb=document.createElement('div'); gb.className='btns wide'; ga.appendChild(gb);
+    gb.appendChild(mkBtn(allBlk?'Unblock email':'Block email (all IDs)',()=>{
+      if(!allBlk&&!confirm('Block '+(em||'these devices')+' and all '+ids.length+' ID(s)? The app stops working on all of them.'))return;
+      setBlockEmail(em,ids,!allBlk);
+    },allBlk?'':'#b3261e'));
+    if(ids.some(id=>!DEV[id].active)) gb.appendChild(mkBtn('Extend days (all)',()=>askExtend(ids.filter(id=>!DEV[id].active),em||'these devices')));
+    gh.appendChild(gtd);t.appendChild(gh);
+    ids.forEach((id,ix)=>{
+      const v=DEV[id], tr=document.createElement('tr');
+      let st=v.active?'<span style="color:#2f6b3a;font-weight:700">Activated</span>'+(v.user?'<br><small>'+esc(v.user)+'</small>':''):(v.requested?'<span style="color:#b3261e;font-weight:700">REQUEST</span>':'Trial');
+      if(v.key&&!v.active) st+='<br><small>key sent, waiting</small>';
+      const sk=v.lastKey||v.key;
+      if(sk) st+='<br><small style="color:#1f6b45">&#128273; key saved'+((v.lastKeyTs||v.keyTs)?' ('+dmy(v.lastKeyTs||v.keyTs)+')':'')+'</small>';
+      if(v.apiKey){const on=v.apiOn!==false; st+='<br><small style="color:'+(on?'#1f6b45':'#b3261e')+'">&#129302; AI key '+esc(PROVN[v.apiProv]||v.apiProv||'')+(v.apiProv==='tesseract'?'':' ...'+esc(String(v.apiKey).slice(-4)))+(on?' (active)':' (STOPPED)')+'<br>Used <b>'+(v.apiUses||0)+'</b> time'+((v.apiUses||0)===1?'':'s')+(v.apiLast?', last '+dmy(v.apiLast):'')+'</small>'}
+      st+='<br><small style="color:'+(v.pasteOn===true?'#1f6b45':'#777')+'">&#128203; Paste sizes: '+(v.pasteOn===true?'ON':'blocked')+'</small>';
+      { const hasS=v.syncUrl||v.syncId; const so=v.syncOn!==false;
+        st+='<br><small style="color:'+(hasS&&so?'#1f6b45':(hasS?'#b3261e':'#777'))+'">&#9729; Sync: '+(hasS?(esc(hostOf(v.syncUrl)||'no URL')+(v.syncId?' &middot; ID ...'+esc(String(v.syncId).slice(-4)):'')+(so?'':' (STOPPED)')):(v.syncUrlOld?'not assigned (customer had one)':'not set'))+'</small>'; }
+      if(v.requested&&!v.active) tr.style.background='#fde8e6';
+      if(v.blocked){tr.style.background='#e6e6e6';tr.style.color='#555';st='<span style="color:#fff;background:#b3261e;padding:1px 6px;border-radius:4px;font-weight:700">BLOCKED</span>'}
+      const isNew=ids.length>1&&id===newest&&(Date.now()-born(id))<14*86400000;
+      tr.innerHTML='<td><b>'+esc(id)+'</b><br><small style="color:#1f6b45;font-weight:700">Device '+(ix+1)+'</small>'+(isNew?' <small style="color:#fff;background:#d97706;padding:0 5px;border-radius:8px">NEW</small>':'')+'<br><small>since '+(born(id)?dmy(born(id)):'?')+'</small></td><td>'+esc(v.name||'')+'</td><td>'+st+'</td><td>'+trialCell(v)+(v.extraDays?'<br><small>('+(v.extraDays>0?'+':'')+v.extraDays+' extra days)</small>':'')+'</td><td>'+esc(ago(v.lastSeen))+'</td><td></td>';
+      tr.className='dv'+(OPEN.has(id)?' open':''); ['Device ID','Name','Status','Trial','Last seen',''].forEach((l,i)=>{tr.children[i].dataset.l=l});
+      { const sl=v.blocked?['BLOCKED','#b3261e']:v.active?['Activated','#2f6b3a']:(v.requested?['REQUEST','#b3261e']:['Trial','#777']);
+        const sm=document.createElement('td');sm.className='sum';
+        sm.innerHTML='<div class="sl"><b>'+esc(id)+'</b> <small style="color:#1f6b45;font-weight:700">Device '+(ix+1)+'</small>'+(isNew?' <small style="color:#fff;background:#d97706;padding:0 5px;border-radius:8px">NEW</small>':'')+(v.name?'<br><small>'+esc(v.name)+'</small>':'')+'</div><div class="sst" style="color:'+sl[1]+'">'+sl[0]+' <span style="color:#1f6b45">&#9662;</span></div>';
+        tr.appendChild(sm);
+        const tg=()=>{OPEN.has(id)?OPEN.delete(id):OPEN.add(id);drawDevices()};
+        sm.onclick=tg; tr.children[0].onclick=tg; }
+      const td=tr.querySelector('td:nth-child(6)'); td.className='acts';
+      const bx=document.createElement('div'); bx.className='btns'; td.appendChild(bx);
+      bx.appendChild(mkBtn('Use',()=>{q('d').value=id;q('u').value=v.name||em||q('u').value;window.scrollTo({top:0,behavior:'smooth'});q('u').focus()}));
+      if(sk){
+        bx.appendChild(mkBtn('Copy key',async()=>{try{await navigator.clipboard.writeText(sk);alert('Key copied for '+id)}catch(e){q('out').value=sk;window.scrollTo({top:0,behavior:'smooth'});alert('Key shown in the Activation key box. Select and copy it.')}},'#1f6b45'));
+        bx.appendChild(mkBtn('WhatsApp',()=>waSend(sk),'#1f6b45'));
+      }
+      bx.appendChild(mkBtn(v.syncUrl?'Sync':'+ Sync',()=>openSync(id),'#1f6b45'));
+      if(v.syncUrl) bx.appendChild(mkBtn(v.syncOn===false?'Resume sync':'Stop sync',()=>aiPatch(id,{syncOn:v.syncOn===false}),v.syncOn===false?'#1f6b45':'#b3261e'));
+      bx.appendChild(mkBtn(v.pasteOn===true?'Paste: ON':'Paste: OFF',()=>aiPatch(id,{pasteOn:v.pasteOn!==true,pasteTs:Date.now()}),v.pasteOn===true?'#1f6b45':'#b3261e'));
+      bx.appendChild(mkBtn(v.apiKey?'AI key':'+ AI key',()=>openAi(id),'#1f6b45'));
+      if(v.apiKey) bx.appendChild(mkBtn(v.apiOn===false?'Resume AI':'Stop AI',()=>aiPatch(id,{apiOn:v.apiOn===false,apiTs:Date.now()}),v.apiOn===false?'#1f6b45':'#b3261e'));
+      bx.appendChild(mkBtn(v.blocked?'Unblock':'Block',()=>{
+        if(!v.blocked&&!confirm('Block device '+id+(v.name?' ('+v.name+')':'')+'? The app on that device will stop working.'))return;
+        setBlockDev(id,!v.blocked);
+      },v.blocked?'':'#b3261e'));
+      if(!v.active) bx.appendChild(mkBtn('+ Days',()=>askExtend([id],id)));
+      bx.appendChild(mkBtn('Delete',async()=>{
+        if(!confirm('Delete Device '+(ix+1)+' ('+id+')? Its trial, block and key record are removed. If that phone opens the app again it will register again.'))return;
+        try{if(v.fp)await adm('/fp/'+v.fp,'DELETE');await adm('/devices/'+id,'DELETE')}catch(e){fail(e)}
+      },'#b3261e'));
+      if(ids.length>1) bx.appendChild(mkBtn('Keep only this',async()=>{
+        const others=ids.filter(x=>x!==id);
+        if(!confirm('Keep Device '+(ix+1)+' ('+id+') and DELETE the other '+others.length+' ID(s): '+others.join(', ')+'?'))return;
+        try{await Promise.all(others.map(async o=>{const w=DEV[o]||{};if(w.fp)await adm('/fp/'+w.fp,'DELETE');await adm('/devices/'+o,'DELETE')}))}catch(e){fail(e)}
+      },'#1f6b45'));
+      t.appendChild(tr);
+    });
+  });
+}
+q('dfilter').addEventListener('input',drawDevices);
+function connect(){
+  if(ES){ES.close();ES=null}
+  DEV={};drawDevices();
+  const es=ES=new EventSource(au('/devices'));
+  es.addEventListener('open',()=>{q('live').textContent='live';q('live').style.color='#2f6b3a'});
+  es.addEventListener('put',e=>{try{const m=JSON.parse(e.data);DEV=setAt(DEV,m.path,m.data,false);drawDevices()}catch(x){}});
+  es.addEventListener('patch',e=>{try{const m=JSON.parse(e.data);DEV=setAt(DEV,m.path,m.data,true);drawDevices()}catch(x){}});
+  es.addEventListener('cancel',()=>{q('live').textContent='access denied - check database rules and that this user is the admin';q('live').style.color='#b3261e'});
+  es.onerror=()=>{q('live').textContent='reconnecting...';q('live').style.color='#b3261e';diagnose()};
+  if(ES2){ES2.close();ES2=null}
+  EM={};
+  const e2=ES2=new EventSource(au('/emails'));
+  e2.addEventListener('put',e=>{try{const m=JSON.parse(e.data);EM=setAt(EM,m.path,m.data,false);drawDevices()}catch(x){}});
+  e2.addEventListener('patch',e=>{try{const m=JSON.parse(e.data);EM=setAt(EM,m.path,m.data,true);drawDevices()}catch(x){}});
+}
+let diagT=0;
+async function diagnose(){
+  if(Date.now()-diagT<15000) return; diagT=Date.now();
+  const L=q('live'); L.style.color='#b3261e';
+  try{
+    const r=await fetch(au('/devices')+'&shallow=true');
+    if(r.ok){L.textContent='reachable, retrying live stream...';return}
+    let t='';try{const j=await r.json();t=j&&j.error?j.error:''}catch(x){}
+    if(r.status===401||r.status===403) L.textContent='Permission denied (HTTP '+r.status+'): '+(t||'check the database rules and that you logged in with the admin email');
+    else L.textContent='HTTP '+r.status+': '+(t||'Database URL is wrong or the Realtime Database is not created');
+  }catch(e){L.textContent='Cannot reach '+DB+' - wrong Database URL, or no internet';}
+}
+q('dburl').value=DB;
+q('dbsave').onclick=()=>{
+  let u=q('dburl').value.trim().replace(/\/+$/,'');
+  if(!/^https:\/\/.+/.test(u)){q('live').textContent='Enter the https Database URL.';q('live').style.color='#b3261e';return}
+  DB=u;try{localStorage.setItem('gc_db_url',u)}catch(e){}
+  diagT=0;q('live').textContent='connecting...';if(TOKEN)connect();
+};
+setInterval(drawDevices,60000);
+
+// ---------- Firebase Authentication (email + password, REST) ----------
+// The Firebase web key is NOT stored in this file (so it never sits in GitHub).
+// Order: 1) Firebase Hosting config URL (if hosted there)  2) saved in this browser  3) ask once and save in this browser.
+let API_KEY=''; const SESS='gc_admin_session_v1';
+async function ensureKey(){
+  if(API_KEY) return;
+  try{const r=await fetch('/__/firebase/init.json',{cache:'no-store'}); if(r.ok){const j=await r.json(); if(j&&j.apiKey){API_KEY=j.apiKey; try{ if(j.databaseURL && !localStorage.getItem('gc_db_url')) DB=j.databaseURL }catch(e){} return}}}catch(e){}
+  try{API_KEY=localStorage.getItem('gc_api_key')||''}catch(e){}
+  if(API_KEY) return;
+  const k=(prompt('Paste your Firebase Web API key (starts with AIza). It is saved only in this browser.')||'').trim();
+  if(!/^AIza[0-9A-Za-z_-]{20,}$/.test(k)) throw new Error('A valid Firebase Web API key is needed to log in.');
+  API_KEY=k; try{localStorage.setItem('gc_api_key',k)}catch(e){}
+}
+let TOKEN='', REFRESH='', EMAIL='', ES=null, ES2=null, RT=null, EM={};
+function au(path){return DB+path+'.json?auth='+encodeURIComponent(TOKEN)}
+function authErr(code){
+  const m={INVALID_LOGIN_CREDENTIALS:'Wrong email or password.',EMAIL_NOT_FOUND:'No user with this email.',INVALID_PASSWORD:'Wrong password.',
+    USER_DISABLED:'This user is disabled.',INVALID_EMAIL:'Invalid email.',OPERATION_NOT_ALLOWED:'Email/Password sign-in is not enabled in Firebase Authentication.',
+    TOO_MANY_ATTEMPTS_TRY_LATER:'Too many attempts. Try again later.'};
+  const k=String(code||'').split(/[ :]/)[0];
+  return m[k]||('Login failed ('+(code||'network error')+').');
+}
+function setSession(idToken,refreshToken,expiresIn,email){
+  TOKEN=idToken;REFRESH=refreshToken;if(email)EMAIL=email;
+  try{localStorage.setItem(SESS,JSON.stringify({r:REFRESH,e:EMAIL}))}catch(x){}
+  clearTimeout(RT);RT=setTimeout(doRefresh,Math.max(60,(parseInt(expiresIn,10)||3600)-300)*1000);
+}
+async function signIn(email,pw){
+  await ensureKey();
+  const r=await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='+API_KEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,password:pw,returnSecureToken:true})});
+  const j=await r.json(); if(!r.ok){ const ej=JSON.stringify(j.error||''); if(/CONFIGURATION_NOT_FOUND/.test(ej)){API_KEY='';try{localStorage.removeItem('gc_api_key')}catch(e){}; throw new Error('This API key is from a Google Cloud project that has no Firebase Authentication. Reload and paste the Web API key of your Firebase project (Firebase console > Project settings > General).')} if(/API key/i.test(ej)){API_KEY='';try{localStorage.removeItem('gc_api_key')}catch(e){}; throw new Error('Firebase Web API key was rejected. Reload and paste the correct key.')} throw new Error(authErr(j.error&&j.error.message)) }
+  setSession(j.idToken,j.refreshToken,j.expiresIn,j.email||email);
+}
+async function doRefresh(){
+  if(!REFRESH) return false;
+  try{
+    await ensureKey();
+    const r=await fetch('https://securetoken.googleapis.com/v1/token?key='+API_KEY,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(REFRESH)});
+    const j=await r.json(); if(!r.ok) throw new Error('refresh');
+    setSession(j.id_token,j.refresh_token,j.expires_in); if(document.body.classList.contains('authed')) connect(); return true;
+  }catch(e){ if(!TOKEN) return false; RT=setTimeout(doRefresh,30000); return false }
+}
+async function loadSigning(){
+  PRV=null;const m=q('skmsg'),mk=q('skmake'),pw=q('skpubw');mk.style.display='none';pw.style.display='none';m.textContent='Checking...';
+  try{
+    const r=await fetch(au('/config/signingKey'));
+    if(r.status===401||r.status===403){m.textContent='No permission to read the signing key. Check that your database rules allow only your admin account on /config.';return}
+    const j=r.ok?await r.json():null;
+    if(j&&j.d){
+      PRV=j;m.textContent='Signing key loaded from Firebase.';
+      try{const r2=await fetch(au('/config/publicKey'));const p=r2.ok?await r2.json():null;if(p){q('skpub').value=JSON.stringify(p);pw.style.display='block'}}catch(e){}
+      return;
+    }
+    m.textContent='No signing key found in Firebase yet.';mk.style.display='inline-block';
+  }catch(e){m.textContent='Could not reach Firebase (offline?).'}
+}
+async function createSigning(){
+  const m=q('skmsg');
+  try{
+    const chk=await fetch(au('/config/signingKey'));
+    if(chk.ok){const x=await chk.json();if(x&&x.d){m.textContent='A signing key already exists. Not overwritten.';await loadSigning();return}}
+    if(!confirm('Create a NEW signing key? Keys made with any older key will stop working once the app is updated.'))return;
+    m.textContent='Creating...';
+    const kp=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+    const pv=await crypto.subtle.exportKey('jwk',kp.privateKey),pb=await crypto.subtle.exportKey('jwk',kp.publicKey);
+    const priv={kty:pv.kty,crv:pv.crv,x:pv.x,y:pv.y,d:pv.d},pub={kty:pb.kty,crv:pb.crv,x:pb.x,y:pb.y};
+    const w1=await fetch(au('/config/signingKey'),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(priv)});
+    if(!w1.ok){m.textContent='Could not save to Firebase (HTTP '+w1.status+'). Check the database rules.';return}
+    await fetch(au('/config/publicKey'),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(pub)});
+    await loadSigning();
+    m.textContent='New signing key saved in Firebase. Now put the public key below into the app.';
+  }catch(e){m.textContent='Failed: '+(e.message||e)}
+}
+q('skmake').onclick=createSigning;
+
+// ---------- Play Store app: subscriptions (from the Cloudflare Worker) ----------
+const PLW='https://logcft-api.greencheckinc.workers.dev';
+let PLTOK=null;   // the Worker ADMIN_TOKEN is kept in this keygen's Firebase (/config/playToken, admin only) until you change or delete it
+async function plFetchTok(){
+  try{const r=await fetch(au('/config/playToken')); if(r.status===401||r.status===403){PLTOK='';return 'no permission to read /config in Firebase'} const j=r.ok?await r.json():null; PLTOK=(typeof j==='string')?j:''; return ''}
+  catch(e){PLTOK='';return 'could not reach Firebase'}
+}
+let PLROWS=[], PLFREE=[];
+function plDate(ts){return ts?dmy(ts):'-'}
+function plDraw(){
+  plDrawFree(); try{tsDraw()}catch(e){}
+  const flt=(q('pl-filter').value||'').trim().toLowerCase(), box=q('pl-list'); box.innerHTML='';
+  const rows=PLROWS.filter(r=>!flt||r.email.toLowerCase().indexOf(flt)>-1||r.id.toLowerCase().indexOf(flt)>-1);
+  if(!rows.length){box.textContent=PLROWS.length?'No match.':'No Play Store customers yet.';return}
+  rows.forEach(r=>{
+    const d=document.createElement('div'); d.style.cssText='border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;background:#fff';
+    const ai=r.aiUntil?(r.aiActive?'<b style="color:#2f6b3a">'+esc(r.plan||'AI')+' ACTIVE</b> till '+plDate(r.aiUntil):'<b style="color:#b3261e">AI '+esc(r.plan||'')+' ended</b> '+plDate(r.aiUntil)):'No AI plan';
+    const pr=r.premiumUntil?(r.premiumActive?'<b style="color:#2f6b3a">Premium ACTIVE</b> till '+plDate(r.premiumUntil):'<b style="color:#b3261e">Premium ended</b> '+plDate(r.premiumUntil)):'No Premium';
+    d.innerHTML='<b>'+(r.email?esc(r.email):'(no email)')+'</b><br><small>Device '+esc(r.id)+'</small><br>'+pr+'<br>'+ai+(r.aiUntil?'<br>Images this plan: <b>'+r.used+' / '+r.limit+'</b>':'')+'<br><small>All time: '+r.total+' images &middot; last read '+plDate(r.lastRead)+'</small>';
+    box.appendChild(d);
+  });
+}
+function plComputeFree(){
+  const paid=new Set(PLROWS.filter(r=>r.aiActive||r.premiumActive).map(r=>r.id));
+  PLFREE=Object.keys(DEV).filter(id=>{const v=DEV[id]; return v&&typeof v==='object'&&v.app==='android'&&!paid.has(id)}).map(id=>{const v=DEV[id]; return {id:id,email:v.email||'',firstSeen:v.firstSeen||0,lastSeen:v.lastSeen||0,ver:v.ver||'',blocked:!!v.blocked}}).sort((a,b)=>b.lastSeen-a.lastSeen);
+}
+function plDrawFree(){
+  plComputeFree();
+  const flt=(q('pl-filter').value||'').trim().toLowerCase(), fl=q('pl-fl'); fl.innerHTML='';
+  const rows=PLFREE.filter(r=>!flt||r.email.toLowerCase().indexOf(flt)>-1||r.id.toLowerCase().indexOf(flt)>-1);
+  q('pl-fn').textContent='('+PLFREE.length+')';
+  if(!rows.length){fl.textContent=PLFREE.length?'No match.':'No free users yet.';return}
+  rows.forEach(r=>{
+    const d=document.createElement('div'); d.style.cssText='border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;background:#fff;font-size:.85rem';
+    d.innerHTML='<b>'+(r.email?esc(r.email):'(no email)')+'</b>'+(r.blocked?' <span style="color:#fff;background:#b3261e;padding:1px 6px;border-radius:4px;font-weight:700">BLOCKED</span>':'')+'<br><small>Device '+esc(r.id)+(r.ver?' &middot; v'+esc(r.ver):'')+'</small><br><small>Since '+plDate(r.firstSeen)+' &middot; last seen '+esc(ago(r.lastSeen))+'</small>';
+    fl.appendChild(d);
+  });
+}
+async function plLoad(){
+  const L=q('pl-live'); L.textContent='loading...';L.style.color='#5a6b63';
+  if(PLTOK===null){const m=await plFetchTok(); if(m){L.textContent=m;L.style.color='#b3261e'}}
+  const t=PLTOK||''; q('pl-tokw').style.display=t?'none':'flex'; q('pl-chg').style.display=t?'':'none'; q('pl-forget').style.display=t?'':'none';
+  if(!t){if(L.style.color!=='rgb(179, 38, 30)'&&L.style.color!=='#b3261e')L.textContent='enter the token';q('pl-sum').textContent='';q('pl-list').innerHTML='';q('pl-fl').innerHTML='';q('pl-fn').textContent='';return}
+  try{
+    const r=await fetch(PLW+'/admin/list',{headers:{'X-Admin-Token':t}});
+    if(r.status===401){L.textContent='wrong token - enter the correct one';L.style.color='#b3261e';q('pl-tokw').style.display='flex';return}
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json(); PLROWS=j.rows||[]; plComputeFree(); const s=j.summary||{};
+    q('pl-sum').innerHTML='Customers <b>'+(s.customers||0)+'</b> &middot; AI active <b>'+(s.aiActive||0)+'</b> &middot; Premium active <b>'+(s.premiumActive||0)+'</b> &middot; Images this plan <b>'+(s.photosThisPlan||0)+'</b> &middot; All time <b>'+(s.photosAllTime||0)+'</b> &middot; Free users <b>'+PLFREE.length+'</b>';
+    L.textContent='updated '+new Date().toLocaleTimeString();L.style.color='#2f6b3a';plDraw();
+  }catch(e){L.textContent='could not load ('+(e.message||e)+'). Check ALLOWED_ORIGIN in the Worker includes this site.';L.style.color='#b3261e'}
+}
+q('pl-save').onclick=async()=>{
+  const v=q('pl-tok').value.trim(); if(!v)return;
+  try{const r=await fetch(au('/config/playToken'),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});
+    if(!r.ok){q('pl-live').textContent='Could not save the token in Firebase (HTTP '+r.status+'). Check the database rules for /config.';q('pl-live').style.color='#b3261e';return}
+  }catch(e){q('pl-live').textContent='Could not save the token (offline?).';q('pl-live').style.color='#b3261e';return}
+  PLTOK=v; q('pl-tok').value=''; plLoad();
+};
+q('pl-chg').onclick=()=>{q('pl-tokw').style.display='flex';q('pl-tok').focus()};
+q('pl-ref').onclick=plLoad;
+q('pl-forget').onclick=async()=>{
+  if(!confirm('Delete the saved Worker token from Firebase? You will need to enter it again.'))return;
+  try{await fetch(au('/config/playToken'),{method:'DELETE'})}catch(e){}
+  PLTOK=''; PLROWS=[];PLFREE=[]; plLoad();
+};
+q('pl-filter').addEventListener('input',plDraw);
+
+// ---------- Testers: Free Access / Premium / AI credits / Expiry per tester email (Play Store app) ----------
+const TSD={};   // unsaved edits per device, so a live refresh does not erase what you are typing
+function tsDate(ms){return ms?ymd(new Date(ms)):''}
+function tsForm(id,r){
+  if(TSD[id]) return TSD[id];
+  const t=(r&&r.tester)||null;
+  return t?{on:!!t.set,prem:!!t.premium,ai:t.ai||0,until:(t.until&&t.until<4e12)?tsDate(t.until):''}:{on:false,prem:false,ai:0,until:''};
+}
+function tsDraw(){
+  const box=q('ts-list'); if(!box) return;
+  const ae=document.activeElement; if(ae&&box.contains(ae)&&/INPUT|SELECT/.test(ae.tagName)) return;   // do not redraw while typing
+  const flt=(q('ts-filter').value||'').trim().toLowerCase(), all=q('ts-all').checked;
+  const R={}; (PLROWS||[]).forEach(r=>{R[r.id]=r});
+  let ids=Object.keys(DEV).filter(id=>{const v=DEV[id];return v&&typeof v==='object'&&(all||v.app==='android'||(R[id]&&R[id].tester))});
+  Object.keys(R).forEach(id=>{if(R[id].tester&&ids.indexOf(id)<0)ids.push(id)});
+  const em=id=>String((DEV[id]&&DEV[id].email)||(R[id]&&R[id].email)||'').toLowerCase();
+  ids=ids.filter(id=>!flt||id.toLowerCase().indexOf(flt)>-1||em(id).indexOf(flt)>-1);
+  const rank=id=>((R[id]&&R[id].tester&&R[id].tester.set)?2:0)+((DEV[id]&&DEV[id].lastSeen)?1e-13*DEV[id].lastSeen:0);
+  ids.sort((a,b)=>rank(b)-rank(a));
+  const lv=q('ts-live'); lv.textContent=ids.length+' device'+(ids.length===1?'':'s')+(PLTOK?'':' - enter the Worker token in the Play Store box to save changes');
+  box.innerHTML='';
+  if(!ids.length){box.textContent=Object.keys(DEV).length?'No Play app device yet. Tick the box above to see all devices.':'No devices yet.';return}
+  ids.forEach(id=>{
+    const r=R[id], v=DEV[id]||{}, f=tsForm(id,r), t=r&&r.tester;
+    const d=document.createElement('div'); d.style.cssText='border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;background:'+(f.on?'#eef8f1':'#fff');
+    const hd=document.createElement('div'); hd.innerHTML='<b>'+(em(id)?esc(em(id)):'(email not entered yet)')+'</b> <span style="font-size:.78rem;font-weight:700;color:#fff;background:'+((t&&t.on)?'#2f6b3a':(t&&t.set?'#b3261e':'#777'))+';padding:1px 7px;border-radius:10px">'+((t&&t.on)?'FREE ACCESS ON':(t&&t.set?'EXPIRED':'OFF'))+'</span><br><small>Device '+esc(id)+(v.ver?' &middot; v'+esc(v.ver):'')+' &middot; last seen '+esc(ago(v.lastSeen))+'</small>';
+    d.appendChild(hd);
+    const g=document.createElement('div'); g.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-top:6px';
+    const mk=(lab,el)=>{const w=document.createElement('div');const l=document.createElement('label');l.style.margin='0 0 2px';l.textContent=lab;w.appendChild(l);w.appendChild(el);g.appendChild(w);return el};
+    const sel=(a,cur,fn)=>{const s=document.createElement('select');a.forEach(o=>{const op=document.createElement('option');op.value=o[0];op.textContent=o[1];s.appendChild(op)});s.value=cur;s.onchange=()=>{fn(s.value)};return s};
+    const keep=()=>{TSD[id]=f};
+    mk('Free Access',sel([['0','OFF'],['1','ON']],f.on?'1':'0',x=>{f.on=x==='1';keep();tsDraw()}));
+    mk('Premium Access',sel([['0','No'],['1','Yes (no ads, unlimited)']],f.prem?'1':'0',x=>{f.prem=x==='1';keep()}));
+    const ai=document.createElement('input');ai.type='number';ai.min='0';ai.max='100000';ai.value=f.ai;ai.placeholder='0 = no AI';ai.oninput=()=>{f.ai=ai.value;keep()};mk('AI Credits (photo readings)',ai);
+    const ed=document.createElement('input');ed.type='date';ed.value=f.until;ed.oninput=()=>{f.until=ed.value;keep()};mk('Access Expiry (empty = no expiry)',ed);
+    d.appendChild(g);
+    if(t){const u=document.createElement('div');u.style.cssText='font-size:.85rem;margin-top:6px;color:#164f33;font-weight:700';u.textContent='AI used: '+t.used+' / '+t.ai+((t.until&&t.until<4e12)?'  |  expires '+tsDate(t.until):'  |  no expiry');d.appendChild(u)}
+    const bx=document.createElement('div'); bx.className='btns'; d.appendChild(bx);
+    bx.appendChild(mkBtn('Save',()=>tsSave(id,f,false)));
+    if(t) bx.appendChild(mkBtn('Reset AI used',()=>{if(confirm('Reset AI used of '+id+' to 0?'))tsSave(id,f,true)},'#1f6b45'));
+    box.appendChild(d);
+  });
+}
+async function tsSave(id,f,reset){
+  const lv=q('ts-live');
+  if(!PLTOK){alert('First enter the Worker ADMIN_TOKEN in the Play Store box above.');return}
+  const ai=parseInt(f.ai,10);
+  if(f.ai!==''&&!(ai>=0)){alert('AI Credits must be 0 or more.');return}
+  if(f.on&&f.until&&new Date(f.until+'T23:59:59').getTime()<Date.now()){alert('Expiry date is in the past.');return}
+  const v=DEV[id]||{}, body={deviceId:id,email:v.email||'',on:!!f.on,premium:!!f.prem,ai:ai||0,until:f.until?new Date(f.until+'T23:59:59').getTime():0,resetUsed:!!reset};
+  try{
+    const r=await fetch(PLW+'/admin/tester',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':PLTOK},body:JSON.stringify(body)});
+    if(r.status===401){alert('Wrong Worker token.');return}
+    if(!r.ok){let m='';try{m=(await r.json()).error}catch(e){}alert('Could not save (HTTP '+r.status+') '+(m||''));return}
+    delete TSD[id]; lv.textContent='saved '+id; await plLoad(); tsDraw();
+  }catch(e){alert('Could not save: '+(e.message||e)+'. Check that ALLOWED_ORIGIN in the Worker includes this site, and that the new worker.js is deployed.')}
+}
+q('ts-filter').addEventListener('input',()=>{tsDraw()});
+q('ts-all').addEventListener('change',()=>{tsDraw()});
+function enter(){document.body.classList.add('authed');q('who').textContent=EMAIL;connect();loadSigning();plLoad()}
+function leave(){
+  clearTimeout(RT);if(ES){ES.close();ES=null}if(ES2){ES2.close();ES2=null}EM={};
+  TOKEN='';REFRESH='';PRV=null;DEV={};try{localStorage.removeItem(SESS)}catch(x){}
+  document.body.classList.remove('authed');q('lpw').value='';q('lmsg').textContent='';
+}
+q('lform').addEventListener('submit',async e=>{
+  e.preventDefault();const m=q('lmsg'),b=q('lgo');m.textContent='Logging in...';m.className='';b.disabled=true;
+  try{await signIn(q('lem').value.trim(),q('lpw').value);q('lpw').value='';m.textContent='';enter()}
+  catch(x){m.className='err';m.textContent=x.message||'Login failed.'}
+  b.disabled=false;
+});
+q('logout').onclick=leave;
+(async()=>{
+  try{const s=JSON.parse(localStorage.getItem(SESS)||'null');
+    if(s&&s.r){REFRESH=s.r;EMAIL=s.e||'';if(await doRefresh()){enter();return}REFRESH=''}}catch(x){}
+})();
+</script></div><script>if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}</script>
+</body></html>
