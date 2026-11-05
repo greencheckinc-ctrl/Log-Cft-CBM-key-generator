@@ -650,6 +650,7 @@ q('pl-forget').onclick=async()=>{
 q('pl-filter').addEventListener('input',plDraw);
 
 // ---------- Testers: Free Access / Premium / AI credits / Expiry per tester email (Play Store app) ----------
+const TSO={};   // which tester rows are expanded
 const TSD={};   // unsaved edits per device, so a live refresh does not erase what you are typing
 function tsDate(ms){return ms?ymd(new Date(ms)):''}
 function tsForm(id,r){
@@ -673,14 +674,15 @@ function tsDraw(){
   if(!ids.length){box.textContent=Object.keys(DEV).length?'No Play app device yet. Tick the box above to see all devices.':'No devices yet.';return}
   ids.forEach(id=>{
     const r=R[id], v=DEV[id]||{}, f=tsForm(id,r), t=r&&r.tester;
-    const d=document.createElement('div'); d.style.cssText='border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;background:'+(f.on?'#eef8f1':'#fff');
-    const hd=document.createElement('div'); hd.innerHTML='<b>'+(em(id)?esc(em(id)):'(email not entered yet)')+'</b> <span style="font-size:.78rem;font-weight:700;color:#fff;background:'+((t&&t.on)?'#2f6b3a':(t&&t.set?'#b3261e':'#777'))+';padding:1px 7px;border-radius:10px">'+((t&&t.on)?'FREE ACCESS ON':(t&&t.set?'EXPIRED':'OFF'))+'</span><br><small>Device '+esc(id)+(v.ver?' &middot; v'+esc(v.ver):'')+' &middot; last seen '+esc(ago(v.lastSeen))+'</small>';
+    const d=document.createElement('details'); d.style.cssText='border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;background:'+(f.on?'#eef8f1':'#fff');
+    d.open=!!TSO[id]; d.addEventListener('toggle',()=>{TSO[id]=d.open});
+    const hd=document.createElement('summary'); hd.style.cssText='cursor:pointer;list-style-position:inside'; hd.innerHTML='<b>'+(em(id)?esc(em(id)):'(email not entered yet)')+'</b> <span style="font-size:.78rem;font-weight:700;color:#fff;background:'+((t&&t.on)?'#2f6b3a':(t&&t.set?'#b3261e':'#777'))+';padding:1px 7px;border-radius:10px">'+((t&&t.on)?'FREE ACCESS ON':(t&&t.set?'EXPIRED':'OFF'))+'</span><br><small>Device '+esc(id)+' &middot; last seen '+esc(ago(v.lastSeen))+'</small>';
     d.appendChild(hd);
     const g=document.createElement('div'); g.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-top:6px';
     const mk=(lab,el)=>{const w=document.createElement('div');const l=document.createElement('label');l.style.margin='0 0 2px';l.textContent=lab;w.appendChild(l);w.appendChild(el);g.appendChild(w);return el};
     const sel=(a,cur,fn)=>{const s=document.createElement('select');a.forEach(o=>{const op=document.createElement('option');op.value=o[0];op.textContent=o[1];s.appendChild(op)});s.value=cur;s.onchange=()=>{fn(s.value)};return s};
     const keep=()=>{TSD[id]=f};
-    mk('Free Access',sel([['0','OFF'],['1','ON']],f.on?'1':'0',x=>{f.on=x==='1';keep();tsDraw()}));
+    mk('Free Access',sel([['0','OFF'],['1','ON']],f.on?'1':'0',x=>{f.on=x==='1';keep();d.style.background=f.on?'#eef8f1':'#fff'}));
     mk('Premium Access',sel([['0','No'],['1','Yes (no ads, unlimited)']],f.prem?'1':'0',x=>{f.prem=x==='1';keep()}));
     const ai=document.createElement('input');ai.type='number';ai.min='0';ai.max='100000';ai.value=f.ai;ai.placeholder='0 = no AI';ai.oninput=()=>{f.ai=ai.value;keep()};mk('AI Credits (photo readings)',ai);
     const ed=document.createElement('input');ed.type='date';ed.value=f.until;ed.oninput=()=>{f.until=ed.value;keep()};mk('Access Expiry (empty = no expiry)',ed);
