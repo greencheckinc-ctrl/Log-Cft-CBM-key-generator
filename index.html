@@ -599,7 +599,10 @@ function plDraw(){
     const d=document.createElement('div'); d.style.cssText='border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;background:#fff';
     const ai=r.aiUntil?(r.aiActive?'<b style="color:#2f6b3a">'+esc(r.plan||'AI')+' ACTIVE</b> till '+plDate(r.aiUntil):'<b style="color:#b3261e">AI '+esc(r.plan||'')+' ended</b> '+plDate(r.aiUntil)):'No AI plan';
     const pr=r.premiumUntil?(r.premiumActive?'<b style="color:#2f6b3a">Premium ACTIVE</b> till '+plDate(r.premiumUntil):'<b style="color:#b3261e">Premium ended</b> '+plDate(r.premiumUntil)):'No Premium';
-    d.innerHTML='<b>'+(r.email?esc(r.email):'(no email)')+'</b><br><small>Device '+esc(r.id)+'</small><br>'+pr+'<br>'+ai+(r.aiUntil?'<br>Images this plan: <b>'+r.used+' / '+r.limit+'</b>':'')+'<br><small>All time: '+r.total+' images &middot; last read '+plDate(r.lastRead)+'</small>';
+    d.innerHTML='<b>'+(r.email?esc(r.email):'(no email)')+'</b><br><small>Device '+esc(r.id)+'</small><br>'+pr+'<br>'+ai+(r.aiUntil?'<br>Images (active packs): <b>'+r.used+' / '+r.limit+'</b>':'')+'<br><small>All time: '+r.total+' images &middot; last read '+plDate(r.lastRead)+'</small>';
+    (r.packs||[]).forEach(k=>{const pr2=document.createElement('div'); pr2.style.cssText='display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:6px;padding:5px 8px;border:1px dashed var(--line);border-radius:8px;font-size:.85rem';
+      const sp=document.createElement('span'); sp.innerHTML='<b>'+esc(k.name)+' pack</b> '+k.used+' / '+k.limit+' &middot; till '+plDate(k.until); pr2.appendChild(sp);
+      pr2.appendChild(mkBtn('Remove (refund)',()=>plVoid(r.id,k),'#b3261e')); d.appendChild(pr2)});
     box.appendChild(d);
   });
 }
@@ -619,6 +622,15 @@ function plDrawFree(){
     fl.appendChild(d);
   });
 }
+async function plVoid(id,k){
+  if(!PLTOK){alert('Enter the Worker token first.');return}
+  if(!confirm('Remove the '+k.name+' pack ('+k.used+' / '+k.limit+' used) of device '+id+'?\nUse this only after Google refunded it. The images stop working at once. This cannot be undone.'))return;
+  try{
+    const r=await fetch(PLW+'/admin/pack',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':PLTOK},body:JSON.stringify({deviceId:id,key:k.key})});
+    if(!r.ok){let m='';try{m=(await r.json()).error}catch(e){}alert('Could not remove (HTTP '+r.status+') '+(m||''));return}
+    await plLoad();
+  }catch(e){alert('Could not remove: '+(e.message||e)+'. Is the new worker.js deployed?')}
+}
 async function plLoad(){
   const L=q('pl-live'); L.textContent='loading...';L.style.color='#5a6b63';
   if(PLTOK===null){const m=await plFetchTok(); if(m){L.textContent=m;L.style.color='#b3261e'}}
@@ -629,7 +641,7 @@ async function plLoad(){
     if(r.status===401){L.textContent='wrong token - enter the correct one';L.style.color='#b3261e';q('pl-tokw').style.display='flex';return}
     if(!r.ok) throw new Error('HTTP '+r.status);
     const j=await r.json(); PLROWS=j.rows||[]; plComputeFree(); const s=j.summary||{};
-    q('pl-sum').innerHTML='Customers <b>'+(s.customers||0)+'</b> &middot; AI active <b>'+(s.aiActive||0)+'</b> &middot; Premium active <b>'+(s.premiumActive||0)+'</b> &middot; Images this plan <b>'+(s.photosThisPlan||0)+'</b> &middot; All time <b>'+(s.photosAllTime||0)+'</b> &middot; Free users <b>'+PLFREE.length+'</b>';
+    q('pl-sum').innerHTML='Customers <b>'+(s.customers||0)+'</b> &middot; AI active <b>'+(s.aiActive||0)+'</b> &middot; Premium active <b>'+(s.premiumActive||0)+'</b> &middot; Images (active packs) <b>'+(s.photosThisPlan||0)+'</b> &middot; All time <b>'+(s.photosAllTime||0)+'</b> &middot; Free users <b>'+PLFREE.length+'</b>';
     L.textContent='updated '+new Date().toLocaleTimeString();L.style.color='#2f6b3a';plDraw();
   }catch(e){L.textContent='could not load ('+(e.message||e)+'). Check ALLOWED_ORIGIN in the Worker includes this site.';L.style.color='#b3261e'}
 }
