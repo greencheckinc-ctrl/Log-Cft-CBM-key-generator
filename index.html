@@ -687,8 +687,11 @@ function tsDraw(){
   ids.forEach(id=>{
     const r=R[id], v=DEV[id]||{}, f=tsForm(id,r), t=r&&r.tester;
     const d=document.createElement('details'); d.style.cssText='border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;background:'+(f.on?'#eef8f1':'#fff');
-    d.open=!!TSO[id]; d.addEventListener('toggle',()=>{TSO[id]=d.open});
-    const hd=document.createElement('summary'); hd.style.cssText='cursor:pointer;list-style-position:inside'; hd.innerHTML='<b>'+(em(id)?esc(em(id)):'(email not entered yet)')+'</b> <span style="font-size:.78rem;font-weight:700;color:#fff;background:'+((t&&t.on)?'#2f6b3a':(t&&t.set?'#b3261e':'#777'))+';padding:1px 7px;border-radius:10px">'+((t&&t.on)?'FREE ACCESS ON':(t&&t.set?'EXPIRED':'OFF'))+'</span><br><small>Device '+esc(id)+' &middot; last seen '+esc(ago(v.lastSeen))+'</small>';
+    d.open=!!TSO[id];
+    const hd=document.createElement('summary'); hd.style.cssText='cursor:pointer;list-style:none;display:block';
+    const bc=(t&&t.on)?'#2f6b3a':(t&&t.set?'#b3261e':'#777'), bt=(t&&t.on)?'FREE ON':(t&&t.set?'EXPIRED':'OFF');
+    hd.innerHTML='<div style="display:flex;align-items:center;gap:6px;min-width:0"><span class="tsar" style="flex:none;width:1em">'+(d.open?'&#9662;':'&#9656;')+'</span><b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.95rem">'+(em(id)?esc(em(id)):'(email not entered yet)')+'</b><span style="flex:none;font-size:.7rem;font-weight:700;color:#fff;background:'+bc+';padding:1px 7px;border-radius:10px;white-space:nowrap">'+bt+'</span></div><div style="font-size:.78rem;color:#5a6b63;margin-left:1.3em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(id)+' &middot; last seen '+esc(ago(v.lastSeen))+'</div>';
+    d.addEventListener('toggle',()=>{TSO[id]=d.open;const ar=hd.querySelector('.tsar');if(ar)ar.innerHTML=d.open?'&#9662;':'&#9656;'});
     d.appendChild(hd);
     const g=document.createElement('div'); g.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-top:6px';
     const mk=(lab,el)=>{const w=document.createElement('div');const l=document.createElement('label');l.style.margin='0 0 2px';l.textContent=lab;w.appendChild(l);w.appendChild(el);g.appendChild(w);return el};
