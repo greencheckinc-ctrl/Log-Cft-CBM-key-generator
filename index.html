@@ -128,6 +128,14 @@ body:not(.authed) .app{display:none}
   <label style="display:flex;gap:8px;align-items:center;margin:0 0 8px"><input type="checkbox" id="ts-all" style="width:auto"> Also show devices not marked as Play app (older versions / web)</label>
   <div id="ts-list"></div>
 </div>
+<div class="box" id="uvbox">
+  <strong>App update popup (Android app)</strong> <span id="uv-live" style="font-size:.8rem;color:#5a6b63"></span>
+  <p style="margin:4px 0 6px;font-size:.8rem;color:#5a6b63">When you upload a new app bundle, put its <b>Version code</b> (Play Console > Test and release > App bundle explorer, or the number in the Releases page) in <b>Latest build</b>. Phones with an older build see "New version available" (Later / Update now) when they open the app. <b>Minimum build</b>: phones older than this must update (no Later button). 0 = off. Uses the Worker token saved in the Play Store box.</p>
+  <label>Latest build (version code)</label><input id="uv-latest" type="number" min="0" inputmode="numeric" placeholder="e.g. 17">
+  <label>Minimum build (required update, 0 = never)</label><input id="uv-min" type="number" min="0" inputmode="numeric" placeholder="0">
+  <label>Message (optional)</label><input id="uv-msg" type="text" maxlength="300" placeholder="e.g. New: AI packs and bug fixes. Please update.">
+  <div class="btns"><button type="button" id="uv-save">Save</button><button type="button" id="uv-off" style="background:#fff;color:#b3261e;border:2px solid #b3261e">Turn popup off</button></div>
+</div>
 <div class="box"><strong>Issued keys (this device)</strong>
   <table><thead><tr><th>ID</th><th>User</th><th>Device</th><th>Till</th><th></th></tr></thead><tbody id="log"></tbody></table>
 </div>
@@ -725,7 +733,25 @@ async function tsSave(id,f,reset){
 }
 q('ts-filter').addEventListener('input',()=>{tsDraw()});
 q('ts-all').addEventListener('change',()=>{tsDraw()});
-function enter(){document.body.classList.add('authed');q('who').textContent=EMAIL;connect();loadSigning();plLoad()}
+async function uvLoad(){
+  try{ const r=await fetch(PLW+'/app-version',{cache:'no-store'}); if(!r.ok) return; const c=await r.json();
+    q('uv-latest').value=c.latest||''; q('uv-min').value=c.min||''; q('uv-msg').value=c.message||'';
+    q('uv-live').textContent=c.latest?('now: latest '+c.latest+(c.min?', required from '+c.min:'')):'now: off';
+  }catch(e){ q('uv-live').textContent='(could not read)' }
+}
+async function uvSave(off){
+  if(!PLTOK){alert('First enter the Worker ADMIN_TOKEN in the Play Store box above.');return}
+  const body=off?{latest:0,min:0,message:'',url:''}:{latest:parseInt(q('uv-latest').value,10)||0,min:parseInt(q('uv-min').value,10)||0,message:q('uv-msg').value.trim(),url:''};
+  if(!off&&!body.latest){alert('Enter the Latest build number (or use Turn popup off).');return}
+  try{
+    const r=await fetch(PLW+'/admin/appversion',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':PLTOK},body:JSON.stringify(body)});
+    if(r.status===401){alert('Wrong Worker token.');return}
+    if(!r.ok){let m='';try{m=(await r.json()).error}catch(e){}alert('Could not save: '+(m||('HTTP '+r.status)));return}
+    await uvLoad(); q('uv-live').textContent+=' (saved)';
+  }catch(e){alert('Could not save: '+(e.message||e)+'. Is the new worker.js deployed?')}
+}
+q('uv-save').onclick=()=>uvSave(false); q('uv-off').onclick=()=>{ if(confirm('Turn the update popup off for everyone?')) uvSave(true) };
+function enter(){try{uvLoad()}catch(e){};document.body.classList.add('authed');q('who').textContent=EMAIL;connect();loadSigning();plLoad()}
 function leave(){
   clearTimeout(RT);if(ES){ES.close();ES=null}if(ES2){ES2.close();ES2=null}EM={};
   TOKEN='';REFRESH='';PRV=null;DEV={};try{localStorage.removeItem(SESS)}catch(x){}
