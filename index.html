@@ -65,6 +65,9 @@ table{width:100%;border-collapse:collapse;font-size:.85rem}th,td{border-bottom:1
 #login button{width:100%;margin:12px 0 0}
 body.authed #login{display:none}
 body:not(.authed) .app{display:none}
+[hidden]{display:none!important}
+#appsw{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 12px}
+#appsw button{width:100%;min-height:48px;margin:0!important;padding:8px 10px!important;font-size:.95rem!important;font-weight:700;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.15}
 </style></head><body>
 <div id="login" role="dialog" aria-modal="true" aria-label="Admin login">
   <form class="lb" id="lform" autocomplete="on">
@@ -79,7 +82,9 @@ body:not(.authed) .app{display:none}
 <div class="app">
 <h1>Activation Key Generator</h1>
 <div style="font-size:.85rem;margin-bottom:6px">Logged in as <b id="who"></b> <button type="button" id="logout" class="alt" style="padding:4px 10px;font-size:.85rem;margin:0 0 0 6px">Log out</button></div>
+<div id="appsw" role="tablist"><button type="button" id="sw-cft">Log CFT/CBM Calculator</button><button type="button" id="sw-os" class="alt">Out Standing Book</button></div>
 <div class="warn"><strong>PRIVATE - for the developer only.</strong> The signing key is kept in your Firebase (admin login only), not in this file. Never share your admin login. Customers only get the generated key text.</div>
+<div id="scr-cft">
 <div class="box">
   <label for="u">User / company name</label><input id="u" placeholder="e.g. Ravani Timber" autocomplete="off">
   <label for="d">Device ID (optional - from the user's Activation key screen)</label><input id="d" placeholder="e.g. K7M2-QX9P" autocomplete="off" style="text-transform:uppercase">
@@ -144,6 +149,43 @@ body:not(.authed) .app{display:none}
   <button type="button" id="skmake" style="display:none">Create signing key</button>
   <div id="skpubw" style="display:none"><label>Public key (give this to the app; it is safe to share)</label>
   <textarea id="skpub" readonly rows="4"></textarea></div>
+</div>
+</div><!-- end scr-cft -->
+<div id="scr-os" hidden>
+<div class="box">
+  <strong>Out Standing Book: Activation key</strong>
+  <p style="margin:4px 0 6px;font-size:.8rem;color:#5a6b63">Keys start with <b>OB1.</b> and work only in the Out Standing Book app (they never activate the Log CFT/CBM app). Devices are stored separately in Firebase under <b>/os_devices</b>.</p>
+  <label for="ou">User / company name</label><input id="ou" placeholder="e.g. Ravani Timber" autocomplete="off">
+  <label for="od">Device ID (optional - from the app's Activation key screen)</label><input id="od" placeholder="e.g. K7M2-QX9P" autocomplete="off" style="text-transform:uppercase">
+  <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="opush" checked style="width:auto"> Also send the key to that device through Firebase (activates automatically)</label>
+  <label>Validity</label>
+  <div class="dbtns" id="opresets" style="margin:2px 0 6px">
+    <button type="button" class="alt opz" data-p="d15">15 days</button>
+    <button type="button" class="alt opz" data-p="m1">1 month</button>
+    <button type="button" class="alt opz" data-p="m6">6 months</button>
+    <button type="button" class="alt opz" data-p="m12">1 year</button>
+    <button type="button" class="alt opz" data-p="m24">2 years</button>
+    <button type="button" class="alt opz" data-p="none">No expiry</button>
+  </div>
+  <div id="opinfo" style="font-size:.85rem;margin-bottom:6px;color:#164f33;font-weight:700">Pick a validity below, or choose a date manually.</div>
+  <div class="row">
+    <div><label for="oe">Or choose end date manually</label><input id="oe" type="date"></div>
+    <div><label for="oy">Or valid for (days)</label><input id="oy" type="number" min="1" placeholder="e.g. 365"></div>
+  </div>
+  <div class="dbtns"><button id="ogen" type="button">Generate key</button></div>
+  <div id="omsg" role="status" style="min-height:1.2em;margin-top:6px;font-size:.9rem"></div>
+  <label for="oout">Activation key</label><textarea id="oout" readonly></textarea>
+  <div class="dbtns"><button id="ocopy" type="button" class="alt">Copy</button><button id="owa" type="button" class="alt">Send on WhatsApp</button></div>
+</div>
+<div class="box">
+  <strong>Out Standing Book devices (live from Firebase)</strong> <span id="olive" style="font-size:.8rem;color:#5a6b63">connecting...</span>
+  <div id="osum" style="margin:6px 0;font-size:.85rem"></div>
+  <input id="ofilter" type="text" autocomplete="off" placeholder="Search name, email or Device ID" style="margin:0 0 8px">
+  <div id="odev"></div>
+</div>
+<div class="box"><strong>Issued Out Standing Book keys (this device)</strong>
+  <table><thead><tr><th>ID</th><th>User</th><th>Device</th><th>Till</th><th></th></tr></thead><tbody id="olog"></tbody></table>
+</div>
 </div>
 <dialog id="dlg-ai" style="border:1px solid var(--line);border-radius:8px;padding:0;width:94%;max-width:440px">
   <div style="background:var(--g);color:#fff;padding:10px 14px;font-weight:700" id="ai-t">AI key</div>
@@ -510,7 +552,7 @@ q('dbsave').onclick=()=>{
   let u=q('dburl').value.trim().replace(/\/+$/,'');
   if(!/^https:\/\/.+/.test(u)){q('live').textContent='Enter the https Database URL.';q('live').style.color='#b3261e';return}
   DB=u;try{localStorage.setItem('gc_db_url',u)}catch(e){}
-  diagT=0;q('live').textContent='connecting...';if(TOKEN)connect();
+  diagT=0;q('live').textContent='connecting...';if(TOKEN){connect();try{osConnect()}catch(e){}}
 };
 setInterval(drawDevices,60000);
 
@@ -553,7 +595,7 @@ async function doRefresh(){
     await ensureKey();
     const r=await fetch('https://securetoken.googleapis.com/v1/token?key='+API_KEY,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(REFRESH)});
     const j=await r.json(); if(!r.ok) throw new Error('refresh');
-    setSession(j.id_token,j.refresh_token,j.expires_in); if(document.body.classList.contains('authed')) connect(); return true;
+    setSession(j.id_token,j.refresh_token,j.expires_in); if(document.body.classList.contains('authed')){ connect(); try{osConnect()}catch(e){} } return true;
   }catch(e){ if(!TOKEN) return false; RT=setTimeout(doRefresh,30000); return false }
 }
 async function loadSigning(){
@@ -751,9 +793,9 @@ async function uvSave(off){
   }catch(e){alert('Could not save: '+(e.message||e)+'. Is the new worker.js deployed?')}
 }
 q('uv-save').onclick=()=>uvSave(false); q('uv-off').onclick=()=>{ if(confirm('Turn the update popup off for everyone?')) uvSave(true) };
-function enter(){try{uvLoad()}catch(e){};document.body.classList.add('authed');q('who').textContent=EMAIL;connect();loadSigning();plLoad()}
+function enter(){try{uvLoad()}catch(e){};document.body.classList.add('authed');q('who').textContent=EMAIL;connect();try{osConnect()}catch(e){}loadSigning();plLoad()}
 function leave(){
-  clearTimeout(RT);if(ES){ES.close();ES=null}if(ES2){ES2.close();ES2=null}EM={};
+  clearTimeout(RT);if(ES){ES.close();ES=null}if(ES2){ES2.close();ES2=null}EM={};try{if(ES3){ES3.close();ES3=null}ODEV={}}catch(e){}
   TOKEN='';REFRESH='';PRV=null;DEV={};try{localStorage.removeItem(SESS)}catch(x){}
   document.body.classList.remove('authed');q('lpw').value='';q('lmsg').textContent='';
 }
@@ -768,5 +810,149 @@ q('logout').onclick=leave;
   try{const s=JSON.parse(localStorage.getItem(SESS)||'null');
     if(s&&s.r){REFRESH=s.r;EMAIL=s.e||'';if(await doRefresh()){enter();return}REFRESH=''}}catch(x){}
 })();
+</script>
+<script>
+// ======================= OUT STANDING BOOK screen =======================
+// Same signing key as the Log CFT/CBM screen, but keys are "OB1." and carry a:'os', so each app only accepts its own keys.
+// Devices live in Firebase under /os_devices (app writes there). Needs the same database rules as /devices (see notes).
+let ES3=null, ODEV={}, OPRESET='';
+const OLOG='gc_issued_os_v1', OKEY_DAYMS=86400000;
+function orl(){try{return JSON.parse(localStorage.getItem(OLOG)||'[]')}catch(e){return []}}
+function orender(){
+  const t=q('olog'); t.innerHTML='';
+  orl().slice().reverse().forEach(r=>{
+    const tr=document.createElement('tr');
+    [r.id,r.u,r.d||'any',r.e||'no expiry'].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)});
+    const td=document.createElement('td'),b=document.createElement('button');b.textContent='Show';b.className='alt';b.style.margin='0';
+    b.onclick=()=>{q('oout').value=r.k||'';q('omsg').textContent=r.k?('Key '+r.id+' ('+r.u+') is shown in the Activation key box above. Copy or send it.'):'This old entry has no saved key.';q('oout').scrollIntoView({behavior:'smooth',block:'center'})};
+    td.appendChild(b);tr.appendChild(td);t.appendChild(tr);
+  });
+}
+function omarkPreset(){document.querySelectorAll('.opz').forEach(b=>{const on=b.dataset.p===OPRESET;b.style.background=on?'#1f6b45':'#fff';b.style.color=on?'#fff':'#1f6b45'})}
+function oshowPinfo(){
+  const e=q('oe').value;
+  if(OPRESET==='none') q('opinfo').textContent='No expiry - key works for life.';
+  else if(e){const n=Math.ceil((new Date(e+'T23:59:59')-Date.now())/864e5);q('opinfo').textContent=(OPRESET?PNAME[OPRESET]+': ':'Valid till ')+e+' ('+n+' days)'}
+  else q('opinfo').textContent='Pick a validity below, or choose a date manually.';
+}
+document.querySelectorAll('.opz').forEach(b=>b.onclick=()=>{OPRESET=b.dataset.p;q('oy').value='';q('oe').value=presetEnd(OPRESET);omarkPreset();oshowPinfo()});
+q('oe').addEventListener('input',()=>{OPRESET='';if(q('oe').value)q('oy').value='';omarkPreset();oshowPinfo()});
+q('oy').addEventListener('input',()=>{OPRESET='';if(q('oy').value)q('oe').value='';omarkPreset();const n=parseInt(q('oy').value,10);if(n>0){const t=new Date();t.setDate(t.getDate()+n-1);q('opinfo').textContent='Valid till '+ymd(t)+' ('+n+' days)'}else oshowPinfo()});
+async function omake(){
+  const m=q('omsg');
+  if(!PRV){m.innerHTML='<span class="err">Signing key is not loaded. Open the Log CFT/CBM Calculator screen and check the "Signing key" box at the bottom.</span>';return}
+  const u=q('ou').value.trim(), d=q('od').value.trim().toUpperCase(); if(OPRESET)q('oe').value=presetEnd(OPRESET); let e=q('oe').value;
+  const y=parseInt(q('oy').value,10);
+  if(!u){m.innerHTML='<span class="err">Enter the user name.</span>';return}
+  if(d&&!/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(d)){m.innerHTML='<span class="err">Device ID must look like K7M2-QX9P.</span>';return}
+  if(!e&&y>0){const t=new Date();t.setDate(t.getDate()+y-1);e=ymd(t)}
+  const p={v:1,a:'os',id:rid(),u:u}; if(d)p.d=d; if(e)p.e=e;
+  const pb=new TextEncoder().encode(JSON.stringify(p));
+  const key=await crypto.subtle.importKey('jwk',PRV,{name:'ECDSA',namedCurve:'P-256'},false,['sign']);
+  const sig=await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},key,pb);
+  const k='OB1.'+b64u(pb)+'.'+b64u(sig);
+  q('oout').value=k; m.textContent='Key '+p.id+' created for '+u+'.';
+  const l=orl(); l.push({id:p.id,u:u,d:d,e:e,k:k}); try{localStorage.setItem(OLOG,JSON.stringify(l))}catch(x){}
+  orender();
+  if(d){
+    const body={lastKey:k,lastKeyUser:u,lastKeyTill:e||'',lastKeyTs:Date.now()};
+    const pushNow=q('opush').checked;
+    if(pushNow){body.key=k;body.keyUser=u;body.keyTill=e||'';body.keyTs=Date.now();body.requested=false}
+    try{
+      const r=await fetch(au('/os_devices/'+d),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      m.textContent+=r.ok?(pushNow?' Sent to device '+d+' and saved in the table.':' Saved in the table under device '+d+'.'):' Could not save to Firebase (HTTP '+r.status+'). Check the database rules for /os_devices.';
+    }catch(x){m.textContent+=' Could not save to Firebase (offline?).'}
+  }
+}
+q('ogen').onclick=omake;
+q('ocopy').onclick=async()=>{const k=q('oout').value; if(!k)return; try{await navigator.clipboard.writeText(k);q('omsg').textContent='Copied.'}catch(e){q('oout').select();q('omsg').textContent='Select and copy the text.'}};
+function oWaSend(k){window.open('https://wa.me/?text='+encodeURIComponent('Your Out Standing Book activation key:\n\n'+k+'\n\nOpen the app > tap the days-left badge at the top (or Settings > Activate App), paste the key and press Activate.'),'_blank')}
+q('owa').onclick=()=>{const k=q('oout').value; if(!k)return; oWaSend(k)};
+orender();
+
+// ---- devices (live) ----
+async function oadm(path,method,body){return adm('/os_devices/'+path,method,body)}
+async function oextend(id,n){
+  const v=ODEV[id]||{}, extra=(v.extraDays||0)+n;
+  const st=v.trialStart||v.firstSeen||Date.now(), cur=v.trialEnd||(st+(30+(v.extraDays||0))*OKEY_DAYMS);
+  await oadm(id,'PATCH',{extraDays:extra,trialEnd:cur+n*OKEY_DAYMS});
+}
+async function oaskExtend(id){
+  const t=prompt('Extend trial of '+id+' by how many days? (use a minus number to reduce)','30'); if(t===null) return;
+  const n=parseInt(t,10); if(!n){alert('Enter a whole number of days.');return}
+  try{await oextend(id,n)}catch(e){fail(e)}
+}
+const OOPEN=new Set();
+function odraw(){
+  const flt=(q('ofilter').value||'').trim().toLowerCase();
+  const all=Object.keys(ODEV).filter(k=>ODEV[k]&&typeof ODEV[k]==='object');
+  const req=all.filter(i=>ODEV[i].requested&&!ODEV[i].active).length, act=all.filter(i=>ODEV[i].active).length;
+  q('osum').innerHTML='Devices <b>'+all.length+'</b> &middot; Requests <b style="color:#b3261e">'+req+'</b> &middot; Activated <b>'+act+'</b> &middot; Blocked <b>'+all.filter(i=>ODEV[i].blocked).length+'</b>';
+  const box=q('odev'); box.innerHTML='';
+  const ids=all.filter(id=>{const v=ODEV[id];return !flt||id.toLowerCase().indexOf(flt)>-1||String(v.name||'').toLowerCase().indexOf(flt)>-1||String(v.email||'').toLowerCase().indexOf(flt)>-1});
+  if(!ids.length){box.textContent=all.length?'No match.':'No Out Standing Book devices yet.';return}
+  const hasReq=id=>(ODEV[id].requested&&!ODEV[id].active)?1:0;
+  ids.sort((a,b)=>(hasReq(b)-hasReq(a))||((ODEV[b].lastSeen||0)-(ODEV[a].lastSeen||0)));
+  ids.forEach(id=>{
+    const v=ODEV[id], sk=v.lastKey||v.key, open=OOPEN.has(id);
+    const d=document.createElement('div');
+    d.style.cssText='border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;background:'+(v.blocked?'#e6e6e6':(v.requested&&!v.active?'#fde8e6':'#fff'));
+    const sl=v.blocked?['BLOCKED','#b3261e']:v.active?['Activated','#2f6b3a']:(v.requested?['REQUEST','#b3261e']:['Trial','#777']);
+    const head=document.createElement('div'); head.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer';
+    head.innerHTML='<div style="min-width:0"><b>'+esc(id)+'</b>'+(v.name?'<br><small>'+esc(v.name)+'</small>':'')+'</div><div style="white-space:nowrap;font-size:.78rem;font-weight:700;color:'+sl[1]+'">'+sl[0]+' &#9662;</div>';
+    head.onclick=()=>{OOPEN.has(id)?OOPEN.delete(id):OOPEN.add(id);odraw()};
+    d.appendChild(head);
+    if(open){
+      const info=document.createElement('div'); info.style.cssText='font-size:.82rem;margin-top:6px;line-height:1.5';
+      let h='';
+      if(v.email) h+='<div>&#9993; '+esc(v.email)+'</div>';
+      if(v.phone) h+='<div>&#9742; '+esc(v.phone)+'</div>';
+      h+='<div>'+(v.active?'<b style="color:#2f6b3a">Activated</b>'+(v.user?' &middot; '+esc(v.user):''):trialCell(v))+'</div>';
+      if(v.key&&!v.active) h+='<div><small>key sent, waiting for the device</small></div>';
+      if(sk) h+='<div style="color:#1f6b45"><small>&#128273; key saved'+((v.lastKeyTs||v.keyTs)?' ('+dmy(v.lastKeyTs||v.keyTs)+')':'')+'</small></div>';
+      h+='<div><small>Last seen: '+ago(v.lastSeen)+(v.ver?' &middot; v'+esc(v.ver):'')+(v.firstSeen?' &middot; since '+dmy(v.firstSeen):'')+'</small></div>';
+      info.innerHTML=h; d.appendChild(info);
+      const bx=document.createElement('div'); bx.className='btns'; d.appendChild(bx);
+      bx.appendChild(mkBtn('Use',()=>{q('od').value=id;q('ou').value=v.name||v.email||q('ou').value;window.scrollTo({top:0,behavior:'smooth'});q('ou').focus()}));
+      if(sk){
+        bx.appendChild(mkBtn('Copy key',async()=>{try{await navigator.clipboard.writeText(sk);alert('Key copied for '+id)}catch(e){q('oout').value=sk;window.scrollTo({top:0,behavior:'smooth'});alert('Key shown in the Activation key box. Select and copy it.')}},'#1f6b45'));
+        bx.appendChild(mkBtn('WhatsApp',()=>oWaSend(sk),'#1f6b45'));
+      }
+      bx.appendChild(mkBtn(v.blocked?'Unblock':'Block',async()=>{
+        if(!v.blocked&&!confirm('Block device '+id+(v.name?' ('+v.name+')':'')+'? The Out Standing Book app on that device will stop working.'))return;
+        try{await oadm(id,'PATCH',{blocked:!v.blocked,blockedTs:Date.now()})}catch(e){fail(e)}
+      },v.blocked?'':'#b3261e'));
+      if(!v.active) bx.appendChild(mkBtn('+ Days',()=>oaskExtend(id)));
+      bx.appendChild(mkBtn('Delete',async()=>{
+        if(!confirm('Delete device '+id+'? Its trial, block and key record are removed. If that phone opens the app again it will register again.'))return;
+        try{if(v.fp)await adm('/os_fp/'+v.fp,'DELETE');await oadm(id,'DELETE')}catch(e){fail(e)}
+      },'#b3261e'));
+    }
+    box.appendChild(d);
+  });
+}
+q('ofilter').addEventListener('input',odraw);
+function osConnect(){
+  if(ES3){ES3.close();ES3=null}
+  ODEV={};odraw();
+  const es=ES3=new EventSource(au('/os_devices'));
+  es.addEventListener('open',()=>{q('olive').textContent='live';q('olive').style.color='#2f6b3a'});
+  es.addEventListener('put',e=>{try{const m=JSON.parse(e.data);ODEV=setAt(ODEV,m.path,m.data,false);odraw()}catch(x){}});
+  es.addEventListener('patch',e=>{try{const m=JSON.parse(e.data);ODEV=setAt(ODEV,m.path,m.data,true);odraw()}catch(x){}});
+  es.addEventListener('cancel',()=>{q('olive').textContent='access denied - add the database rules for /os_devices (same as /devices)';q('olive').style.color='#b3261e'});
+  es.onerror=()=>{q('olive').textContent='reconnecting...';q('olive').style.color='#b3261e'};
+}
+setInterval(odraw,60000);
+
+// ---- screen switcher ----
+function showScr(n){
+  const os=n==='os';
+  q('scr-cft').hidden=os; q('scr-os').hidden=!os;
+  q('sw-cft').className=os?'alt':''; q('sw-os').className=os?'':'alt';
+  try{localStorage.setItem('gc_scr',os?'os':'cft')}catch(e){}
+  window.scrollTo({top:0});
+}
+q('sw-cft').onclick=()=>showScr('cft'); q('sw-os').onclick=()=>showScr('os');
+showScr((function(){try{return localStorage.getItem('gc_scr')==='os'?'os':'cft'}catch(e){return 'cft'}})());
 </script></div><script>if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}</script>
 </body></html>
