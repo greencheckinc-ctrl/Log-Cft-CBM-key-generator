@@ -197,6 +197,8 @@ body:not(.authed) .app{display:none}
     <input id="ai-k" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="AIza... / sk-... / sk-ant-...">
     <label for="ai-m">Model (optional, leave empty for default)</label>
     <input id="ai-m" type="text" autocomplete="off" autocapitalize="off" placeholder="e.g. gemini-3.8-flash / gpt-4o">
+    <label for="ai-lim">Image limit (total images this customer may read; leave empty = unlimited)</label>
+    <input id="ai-lim" type="number" min="0" step="1" inputmode="numeric" placeholder="e.g. 10">
     <div id="ai-hint" style="font-size:.8rem;color:#555;margin-top:4px"></div>
     <div id="ai-use" style="font-size:.85rem;margin-top:6px;color:#164f33;font-weight:700"></div>
     <div id="ai-msg" role="status" style="min-height:1.2em;margin-top:6px"></div>
@@ -390,11 +392,11 @@ async function aiPatch(id,o){try{await adm('/devices/'+id,'PATCH',o);return true
 function openAi(id){
   const v=DEV[id]||{}; AI_ID=id;
   q('ai-t').textContent='AI key for '+id+(v.name?' ('+v.name+')':'');
-  q('ai-p').value=v.apiProv||'gemini'; q('ai-k').value=v.apiKey||''; q('ai-m').value=v.apiModel||'';
+  q('ai-p').value=v.apiProv||'gemini'; q('ai-k').value=v.apiKey||''; q('ai-k').placeholder=(!v.apiKey&&v.apiHas)?'Saved on the server (hidden). Leave empty to keep it.':'AIza... / sk-... / sk-ant-...'; q('ai-m').value=v.apiModel||''; q('ai-lim').value=(typeof v.apiLimit==='number')?v.apiLimit:'';
   aiHint();
-  q('ai-rm').style.display=v.apiKey?'inline-block':'none'; q('ai-msg').textContent='';
-  q('ai-reset').style.display=v.apiKey?'inline-block':'none';
-  q('ai-use').textContent=v.apiKey?('Used '+(v.apiUses||0)+' time'+((v.apiUses||0)===1?'':'s')+(v.apiLast?' (last: '+dmy(v.apiLast)+')':'')):'';
+  q('ai-rm').style.display=(v.apiKey||v.apiHas)?'inline-block':'none'; q('ai-msg').textContent='';
+  q('ai-reset').style.display=(v.apiKey||v.apiHas)?'inline-block':'none';
+  q('ai-use').textContent=(v.apiKey||v.apiHas)?('Used '+(v.apiUses||0)+' time'+((v.apiUses||0)===1?'':'s')+(typeof v.apiLimit==='number'?' / limit '+v.apiLimit+' / remaining '+Math.max(0,v.apiLimit-(v.apiUses||0)):'')+(v.apiLast?' (last: '+dmy(v.apiLast)+')':'')):'';
   q('dlg-ai').showModal();
 }
 q('ai-x').onclick=()=>q('dlg-ai').close();
@@ -408,10 +410,18 @@ function aiHint(){
 }
 q('ai-p').onchange=aiHint;
 q('ai-save').onclick=async()=>{
-  const tess=q('ai-p').value==='tesseract';
+  const tess=q('ai-p').value==='tesseract', old=DEV[AI_ID]||{};
   const k=tess?'ocr-free':q('ai-k').value.trim().replace(/\s+/g,'');
-  if(!tess&&k.length<10){q('ai-msg').innerHTML='<span class="err">Paste the full API key.</span>';return}
-  if(await aiPatch(AI_ID,{apiProv:q('ai-p').value,apiKey:k,apiModel:tess?null:(q('ai-m').value.trim()||null),apiOn:true,apiTs:Date.now()})) q('dlg-ai').close();
+  const keep=!tess&&!k&&(old.apiHas||old.apiKey);   // key already saved on the server: leave it, change only the other fields
+  if(!tess&&!keep&&k.length<10){q('ai-msg').innerHTML='<span class="err">Paste the full API key.</span>';return}
+  const o={apiProv:q('ai-p').value,apiModel:tess?null:(q('ai-m').value.trim()||null),apiLimit:(q('ai-lim').value.trim()===''?null:Math.max(0,parseInt(q('ai-lim').value,10)||0)),apiOn:true,apiTs:Date.now()};
+  if(tess){ o.apiKey=k; o.apiHas=true }
+  else if(!keep){
+    // the secret key goes to devKeys/<id> (only you can read it; the customer's app never gets it). If that rule is not added yet, it stays on the device row like before.
+    try{ await adm('/devKeys/'+AI_ID,'PUT',{k:k}); o.apiKey=null }catch(e){ o.apiKey=k; alert('Key saved the OLD way (visible in the database). Add the devKeys rule from WORKER-UPDATE-NOTES to keep it secret.') }
+    o.apiHas=true;
+  }
+  if(await aiPatch(AI_ID,o)) q('dlg-ai').close();
 };
 q('ai-reset').onclick=async()=>{
   if(!confirm('Reset the usage count of '+AI_ID+' to 0?'))return;
@@ -419,7 +429,8 @@ q('ai-reset').onclick=async()=>{
 };
 q('ai-rm').onclick=async()=>{
   if(!confirm('Remove the AI key of '+AI_ID+'? Photo reading stops on that device.'))return;
-  if(await aiPatch(AI_ID,{apiProv:null,apiKey:null,apiModel:null,apiOn:null,apiTs:null,apiUses:null,apiLast:null})) q('dlg-ai').close();
+  try{await adm('/devKeys/'+AI_ID,'DELETE')}catch(e){}
+  if(await aiPatch(AI_ID,{apiProv:null,apiKey:null,apiModel:null,apiOn:null,apiTs:null,apiUses:null,apiLast:null,apiLimit:null,apiHas:null})) q('dlg-ai').close();
 };
 function mkBtn(txt,fn,color){
   const b=document.createElement('button');b.type='button';b.textContent=txt;b.className='alt';
@@ -474,7 +485,7 @@ function drawDevices(){
       if(v.key&&!v.active) st+='<br><small>key sent, waiting</small>';
       const sk=v.lastKey||v.key;
       if(sk) st+='<br><small style="color:#1f6b45">&#128273; key saved'+((v.lastKeyTs||v.keyTs)?' ('+dmy(v.lastKeyTs||v.keyTs)+')':'')+'</small>';
-      if(v.apiKey){const on=v.apiOn!==false; st+='<br><small style="color:'+(on?'#1f6b45':'#b3261e')+'">&#129302; AI key '+esc(PROVN[v.apiProv]||v.apiProv||'')+(v.apiProv==='tesseract'?'':' ...'+esc(String(v.apiKey).slice(-4)))+(on?' (active)':' (STOPPED)')+'<br>Used <b>'+(v.apiUses||0)+'</b> time'+((v.apiUses||0)===1?'':'s')+(v.apiLast?', last '+dmy(v.apiLast):'')+'</small>'}
+      if(v.apiKey||v.apiHas){const on=v.apiOn!==false; st+='<br><small style="color:'+(on?'#1f6b45':'#b3261e')+'">&#129302; AI key '+esc(PROVN[v.apiProv]||v.apiProv||'')+(v.apiProv==='tesseract'||!v.apiKey?'':' ...'+esc(String(v.apiKey).slice(-4)))+(on?' (active)':' (STOPPED)')+'<br>Used <b>'+(v.apiUses||0)+'</b> time'+((v.apiUses||0)===1?'':'s')+(typeof v.apiLimit==='number'?' &middot; limit <b>'+v.apiLimit+'</b> &middot; remaining <b style="color:'+((v.apiLimit-(v.apiUses||0))<=0?'#b3261e':'#1f6b45')+'">'+Math.max(0,v.apiLimit-(v.apiUses||0))+'</b>':' &middot; no limit')+(v.apiLast?', last '+dmy(v.apiLast):'')+'</small>'}
       st+='<br><small style="color:'+(v.pasteOn===true?'#1f6b45':'#777')+'">&#128203; Paste sizes: '+(v.pasteOn===true?'ON':'blocked')+'</small>';
       { const hasS=v.syncUrl||v.syncId; const so=v.syncOn!==false;
         st+='<br><small style="color:'+(hasS&&so?'#1f6b45':(hasS?'#b3261e':'#777'))+'">&#9729; Sync: '+(hasS?(esc(hostOf(v.syncUrl)||'no URL')+(v.syncId?' &middot; ID ...'+esc(String(v.syncId).slice(-4)):'')+(so?'':' (STOPPED)')):(v.syncUrlOld?'not assigned (customer had one)':'not set'))+'</small>'; }
@@ -499,8 +510,8 @@ function drawDevices(){
       bx.appendChild(mkBtn(v.syncUrl?'Sync':'+ Sync',()=>openSync(id),'#1f6b45'));
       if(v.syncUrl) bx.appendChild(mkBtn(v.syncOn===false?'Resume sync':'Stop sync',()=>aiPatch(id,{syncOn:v.syncOn===false}),v.syncOn===false?'#1f6b45':'#b3261e'));
       bx.appendChild(mkBtn(v.pasteOn===true?'Paste: ON':'Paste: OFF',()=>aiPatch(id,{pasteOn:v.pasteOn!==true,pasteTs:Date.now()}),v.pasteOn===true?'#1f6b45':'#b3261e'));
-      bx.appendChild(mkBtn(v.apiKey?'AI key':'+ AI key',()=>openAi(id),'#1f6b45'));
-      if(v.apiKey) bx.appendChild(mkBtn(v.apiOn===false?'Resume AI':'Stop AI',()=>aiPatch(id,{apiOn:v.apiOn===false,apiTs:Date.now()}),v.apiOn===false?'#1f6b45':'#b3261e'));
+      bx.appendChild(mkBtn((v.apiKey||v.apiHas)?'AI key':'+ AI key',()=>openAi(id),'#1f6b45'));
+      if(v.apiKey||v.apiHas) bx.appendChild(mkBtn(v.apiOn===false?'Resume AI':'Stop AI',()=>aiPatch(id,{apiOn:v.apiOn===false,apiTs:Date.now()}),v.apiOn===false?'#1f6b45':'#b3261e'));
       bx.appendChild(mkBtn(v.blocked?'Unblock':'Block',()=>{
         if(!v.blocked&&!confirm('Block device '+id+(v.name?' ('+v.name+')':'')+'? The app on that device will stop working.'))return;
         setBlockDev(id,!v.blocked);
@@ -555,6 +566,7 @@ q('dbsave').onclick=()=>{
   diagT=0;q('live').textContent='connecting...';if(TOKEN){connect();try{osConnect()}catch(e){}}
 };
 setInterval(drawDevices,60000);
+setInterval(()=>{try{if(PLTOK&&!document.hidden&&document.body.classList.contains('authed')) plLoad()}catch(e){}},60000);   // keep the Play Store customers list (and AI image counts) fresh
 
 // ---------- Firebase Authentication (email + password, REST) ----------
 // The Firebase web key is NOT stored in this file (so it never sits in GitHub).
