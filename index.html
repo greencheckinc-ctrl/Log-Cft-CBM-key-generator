@@ -723,6 +723,7 @@ html.locked body{overflow:hidden}
           = <b id="pl-lt">&#8377;2,988</b>
         </label>
         <div style="font-size:.85rem;margin:6px 0 4px;color:var(--muted);font-weight:600">AI support (pick one)</div>
+        <div id="pl-aiwarn" style="font-size:.82rem;margin:0 0 6px;color:#b45309;line-height:1.35">AI packs do not work without an active license (&#8377;249 / month).</div>
         <label style="display:block;border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:6px;background:#fff;color:inherit;font-weight:400"><input type="checkbox" class="pl-ai" data-k="basic" style="width:auto;margin:0 8px 0 0;vertical-align:middle">AI Basic pack: <b id="pl-p-basic">&#8377;999</b> <span style="color:var(--muted)">(<span id="pl-i-basic">45</span> images/year)</span></label>
         <label style="display:block;border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:6px;background:#fff;color:inherit;font-weight:400"><input type="checkbox" class="pl-ai" data-k="standard" style="width:auto;margin:0 8px 0 0;vertical-align:middle">AI Standard pack: <b id="pl-p-standard">&#8377;4,999</b> <span style="color:var(--muted)">(<span id="pl-i-standard">240</span> images/year)</span></label>
         <label style="display:block;border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:6px;background:#fff;color:inherit;font-weight:400"><input type="checkbox" class="pl-ai" data-k="premium" style="width:auto;margin:0 8px 0 0;vertical-align:middle">AI Premium pack: <b id="pl-p-premium">&#8377;9,999</b> <span style="color:var(--muted)">(<span id="pl-i-premium">500</span> images/year)</span></label>
@@ -4354,6 +4355,7 @@ setTimeout(go,1800);})();
     $('pl-mp').textContent=RZP.monthly; $('pl-lt').textContent=mo?inr(RZP.monthly*mo):'-';
     for(var k in PACKN){ var e=$('pl-p-'+k), im=$('pl-i-'+k); if(e) e.textContent=inr(RZP.packs[k]); if(im) im.textContent=RZP.images[k] }
     var p=pick(), b=$('pay-go');
+    $('pl-aiwarn').textContent='AI packs do not work without an active license ('+inr(RZP.monthly)+' / month).';
     $('pl-total').textContent=inr(p.total);
     var gr=$('pl-gst-row'); gr.hidden=!(RZP.gst>0&&p.sub>0);
     $('pl-gp').textContent=RZP.gst; $('pl-sub').textContent=inr(p.sub); $('pl-gv').textContent=inr(p.gst);
@@ -4415,7 +4417,7 @@ setTimeout(go,1800);})();
     var rz=new window.Razorpay({
       key:RZP.key, amount:Math.round(P.total*100), currency:'INR', name:RZP.name, description:desc,
       prefill:{name:nm,email:em},
-      notes:{device_id:did,email:em,name:nm,items:desc,license_months:P.lic?String(P.mo):'0',subtotal:String(P.sub),gst:String(P.gst),ai_pack:P.ai||'none',ai_images_per_year:P.ai?String(RZP.images[P.ai]):'0',total:String(P.total)},
+      notes:{device_id:did,email:em,name:nm,items:desc,license_months:P.lic?String(P.mo):'0',subtotal:String(P.sub),gst:String(P.gst),ai_pack:P.ai||'none',ai_needs_license_ack:P.ai?'yes':'',ai_images_per_year:P.ai?String(RZP.images[P.ai]):'0',total:String(P.total)},
       theme:{color:(window.__th&&window.__th.c)||'#1f6b45'},
       modal:{ondismiss:function(){back(); if(!/received/i.test(m.textContent))m.textContent='Payment cancelled.'}},
       handler:async function(r){
@@ -4444,7 +4446,14 @@ setTimeout(go,1800);})();
     b.onclick=payNow;
     $('pl-lic').onchange=planRefresh; $('pl-mo').oninput=planRefresh;
     var cs=document.querySelectorAll('.pl-ai');
-    for(var i=0;i<cs.length;i++) cs[i].onchange=function(){ if(this.checked) for(var k=0;k<cs.length;k++) if(cs[k]!==this) cs[k].checked=false; planRefresh() };   // AI packs: one at a time
+    for(var i=0;i<cs.length;i++) cs[i].onchange=function(){
+      if(this.checked){
+        var ok=confirm('AI pack works only with an active license ('+inr(RZP.monthly)+' / month). Without a license the AI pack will not work.\n\nDo you understand and want to continue?');
+        if(!ok){ this.checked=false; planRefresh(); return }
+        for(var k=0;k<cs.length;k++) if(cs[k]!==this) cs[k].checked=false;     // AI packs: one at a time
+      }
+      planRefresh();
+    };
     planRefresh();
     $('mi-act').addEventListener('click',rzpLoadCfg);      // refresh the settings whenever the Activation dialog is opened
     rzpLoadCfg();
