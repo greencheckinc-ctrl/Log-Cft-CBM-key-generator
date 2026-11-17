@@ -457,6 +457,7 @@ function mkBtn(txt,fn,color){
 }
 const OPEN=new Set(), OPENG=new Set();
 function drawDevices(){
+  gcNewCheck('d',DEV,v=>v.app==='android'?'Play Store app - new customer':'Browser app - new customer');
   try{if(typeof plDrawFree==='function'&&PLROWS)plDrawFree()}catch(e){}
   try{if(typeof tsDraw==='function')tsDraw()}catch(e){}
   const flt=(q('dfilter')&&q('dfilter').value||'').trim().toLowerCase();
@@ -916,6 +917,7 @@ async function oaskExtend(id){
 }
 const OOPEN=new Set();
 function odraw(){
+  gcNewCheck('o',ODEV,v=>'Browser app (other index) - new customer');
   const flt=(q('ofilter').value||'').trim().toLowerCase();
   const all=Object.keys(ODEV).filter(k=>ODEV[k]&&typeof ODEV[k]==='object');
   const req=all.filter(i=>ODEV[i].requested&&!ODEV[i].active).length, act=all.filter(i=>ODEV[i].active).length;
@@ -975,6 +977,35 @@ function osConnect(){
   es.onerror=()=>{q('olive').textContent='reconnecting...';q('olive').style.color='#b3261e'};
 }
 setInterval(odraw,60000);
+
+// ---------- New customer ID popup ----------
+const NEWQ=[];
+function gcSeen(){try{return JSON.parse(localStorage.getItem('gc_seen_v1')||'null')}catch(e){return null}}
+function gcSave(o){try{localStorage.setItem('gc_seen_v1',JSON.stringify(o))}catch(e){}}
+function gcNewCheck(src,obj,label){
+  try{
+    if(!obj||typeof obj!=='object') return;
+    const ids=Object.keys(obj).filter(id=>obj[id]&&typeof obj[id]==='object'); if(!ids.length) return;
+    let S=gcSeen()||{}; const init=S['_i'+src]===undefined, fresh=[];
+    ids.forEach(id=>{const k=src+':'+id; if(!S[k]){S[k]=1; if(!init) fresh.push({id:id,v:obj[id],label:label(obj[id])})}});
+    S['_i'+src]=1;
+    gcSave(S);
+    if(fresh.length) gcShowNew(fresh);
+  }catch(e){}
+}
+function gcShowNew(list){
+  list.forEach(x=>NEWQ.push(x));
+  let m=document.getElementById('newpop');
+  if(!m){
+    m=document.createElement('div'); m.id='newpop';
+    m.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px';
+    m.innerHTML='<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;max-height:80vh;overflow:auto;padding:16px;box-shadow:0 8px 30px rgba(0,0,0,.35)"><h3 style="margin:0 0 8px;color:#1f6b45">New customer ID</h3><div id="newpop-l"></div><button type="button" id="newpop-ok" style="width:100%;margin-top:12px">OK</button></div>';
+    document.body.appendChild(m);
+    document.getElementById('newpop-ok').onclick=()=>{NEWQ.length=0;m.remove()};
+    try{if(navigator.vibrate)navigator.vibrate([200,100,200])}catch(e){}
+  }
+  document.getElementById('newpop-l').innerHTML=NEWQ.map(x=>'<div style="border:1px solid #cfe3d6;border-radius:10px;padding:8px 10px;margin:6px 0;font-size:.9rem"><b>'+esc(x.label)+'</b><br><small>ID '+esc(x.id)+(x.v&&x.v.email?' &middot; '+esc(x.v.email):'')+'</small></div>').join('');
+}
 
 // ---- screen switcher ----
 function showScr(n){
