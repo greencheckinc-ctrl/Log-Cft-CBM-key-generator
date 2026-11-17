@@ -456,7 +456,30 @@ function mkBtn(txt,fn,color){
   b.onclick=fn;return b;
 }
 const OPEN=new Set(), OPENG=new Set();
+const SELDEL=new Set();
+function selBar(){
+  let b=document.getElementById('selbar');
+  if(!b){
+    b=document.createElement('div'); b.id='selbar';
+    b.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:9000;background:#fff;border-top:2px solid #b3261e;padding:8px 12px;display:none;gap:8px;align-items:center;box-shadow:0 -4px 14px rgba(0,0,0,.2)';
+    b.innerHTML='<b id="selcnt" style="flex:1"></b><button type="button" id="selclr" class="alt" style="margin:0">Clear</button><button type="button" id="seldel" style="margin:0;background:#b3261e">Delete selected</button>';
+    document.body.appendChild(b);
+    document.getElementById('selclr').onclick=()=>{SELDEL.clear();drawDevices()};
+    document.getElementById('seldel').onclick=async()=>{
+      const list=[...SELDEL].filter(id=>DEV[id]); if(!list.length){SELDEL.clear();selBar();return}
+      const risky=list.filter(id=>{const v=DEV[id];return v.active||v.paid||v.key||v.requested});
+      if(!confirm('Delete '+list.length+' selected ID(s)?'+(risky.length?'\n\nWARNING: '+risky.length+' of them are activated / paid / key-sent / requested.':'')+'\nThis cannot be undone. A phone that opens the app again will register again.'))return;
+      try{await Promise.all(list.map(async id=>{const w=DEV[id]||{}; if(w.fp)await adm('/fp/'+w.fp,'DELETE'); await adm('/devices/'+id,'DELETE')})); list.forEach(id=>SELDEL.delete(id)); alert(list.length+' ID(s) deleted.')}catch(e){fail(e)}
+      drawDevices();
+    };
+  }
+  [...SELDEL].forEach(id=>{if(!DEV[id])SELDEL.delete(id)});
+  b.style.display=SELDEL.size?'flex':'none';
+  document.getElementById('selcnt').textContent=SELDEL.size+' selected';
+}
+
 function drawDevices(){
+  try{selBar()}catch(e){}
   gcNewCheck('d',DEV,v=>v.app==='android'?'Play Store app - new customer':'Browser app - new customer');
   try{if(typeof plDrawFree==='function'&&PLROWS)plDrawFree()}catch(e){}
   try{if(typeof tsDraw==='function')tsDraw()}catch(e){}
@@ -497,6 +520,20 @@ function drawDevices(){
       setBlockEmail(em,ids,!allBlk);
     },allBlk?'':'#b3261e'));
     gb.appendChild(mkBtn('Extend days (all)',()=>askExtend(ids,em||'these devices')));
+    gb.appendChild(mkBtn(ids.every(i=>SELDEL.has(i))?'Unselect all':'Select all',()=>{const all=ids.every(i=>SELDEL.has(i));ids.forEach(i=>all?SELDEL.delete(i):SELDEL.add(i));drawDevices()}));
+    if(!em){
+      const sel=document.createElement('select'); sel.style.cssText='margin:0 6px 6px 0;padding:6px;max-width:100%';
+      [['0','all unused IDs'],['7','not seen for 7+ days'],['30','not seen for 30+ days']].forEach(o=>{const op=document.createElement('option');op.value=o[0];op.textContent=o[1];sel.appendChild(op)});
+      ga.appendChild(sel);
+      gb.appendChild(mkBtn('Delete IDs without email',async()=>{
+        const days=+sel.value, now=Date.now();
+        // never touch activated, key-holding, requested or already-paid devices
+        const list=ids.filter(id=>{const v=DEV[id]||{}; if(v.active||v.key||v.requested||v.blocked) return false; const seen=v.lastSeen||v.firstSeen||0; return !days||!seen||(now-seen)>days*86400000});
+        if(!list.length){alert('Nothing to delete. Activated, key-sent, requested and blocked IDs are always kept.');return}
+        if(!confirm('Delete '+list.length+' ID(s) without email ('+sel.options[sel.selectedIndex].text+')?\nActivated, key-sent, requested and blocked IDs are kept. This cannot be undone.\nA phone that opens the app again will register again.'))return;
+        try{await Promise.all(list.map(async id=>{const w=DEV[id]||{}; if(w.fp)await adm('/fp/'+w.fp,'DELETE'); await adm('/devices/'+id,'DELETE')})); alert(list.length+' ID(s) deleted.')}catch(e){fail(e)}
+      },'#b3261e'));
+    }
     gh.appendChild(gtd);t.appendChild(gh);
     ids.forEach((id,ix)=>{
       const v=DEV[id], tr=document.createElement('tr');
@@ -517,6 +554,10 @@ function drawDevices(){
       { const sl=v.blocked?['BLOCKED','#b3261e']:v.active?['Activated','#2f6b3a']:(v.requested?['REQUEST','#b3261e']:['Trial','#777']);
         const sm=document.createElement('td');sm.className='sum';
         sm.innerHTML='<div class="sl"><b>'+esc(id)+'</b> <small style="color:#1f6b45;font-weight:700">Device '+(ix+1)+'</small>'+(isNew?' <small style="color:#fff;background:#d97706;padding:0 5px;border-radius:8px">NEW</small>':'')+(v.name?'<br><small>'+esc(v.name)+'</small>':'')+(v.paid?'<br><small style="color:#1f6b45;font-weight:700">&#128179; Paid '+inr(v.payAmt)+'</small>':'')+'</div><div class="sst" style="color:'+sl[1]+'">'+sl[0]+' <span style="color:#1f6b45">&#9662;</span></div>';
+        { const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=SELDEL.has(id); cb.setAttribute('aria-label','Select '+id);
+          cb.style.cssText='width:22px;height:22px;margin:0 8px 0 0;vertical-align:middle;flex:none;accent-color:#b3261e';
+          cb.onclick=e=>e.stopPropagation(); cb.onchange=()=>{cb.checked?SELDEL.add(id):SELDEL.delete(id);selBar()};
+          const sl0=sm.querySelector('.sl'); if(sl0) sl0.insertBefore(cb,sl0.firstChild); }
         tr.appendChild(sm);
         const tg=()=>{OPEN.has(id)?OPEN.delete(id):OPEN.add(id);drawDevices()};
         sm.onclick=tg; tr.children[0].onclick=tg; }
@@ -933,7 +974,7 @@ function odraw(){
     d.style.cssText='border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;background:'+(v.blocked?'#e6e6e6':(v.requested&&!v.active?'#fde8e6':'#fff'));
     const sl=v.blocked?['BLOCKED','#b3261e']:v.active?['Activated','#2f6b3a']:(v.requested?['REQUEST','#b3261e']:['Trial','#777']);
     const head=document.createElement('div'); head.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer';
-    head.innerHTML='<div style="min-width:0"><b>'+esc(id)+'</b>'+(v.name?'<br><small>'+esc(v.name)+'</small>':'')+'</div><div style="white-space:nowrap;font-size:.78rem;font-weight:700;color:'+sl[1]+'">'+sl[0]+' &#9662;</div>';
+    head.innerHTML='<div style="min-width:0"><b>'+esc(id)+'</b>'+(v.email?'<br><small style="color:#1f6b45;font-weight:600">&#9993; '+esc(v.email)+'</small>':'<br><small style="color:#b3261e">(email not entered yet)</small>')+(v.name?'<br><small>'+esc(v.name)+'</small>':'')+'</div><div style="white-space:nowrap;font-size:.78rem;font-weight:700;color:'+sl[1]+'">'+sl[0]+' &#9662;</div>';
     head.onclick=()=>{OOPEN.has(id)?OOPEN.delete(id):OOPEN.add(id);odraw()};
     d.appendChild(head);
     if(open){
